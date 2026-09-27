@@ -21,6 +21,8 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
+copy /y "%~dp0..\src\MacFanControl.UI\applesmc.sys" "%~dp0..\publish\applesmc.sys" >nul 2>nul
+
 echo.
 echo [2/2] Build completed successfully!
 echo Executable generated at: ./publish/MacFanControl.UI.exe

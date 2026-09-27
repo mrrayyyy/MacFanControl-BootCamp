@@ -35,6 +35,9 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+# Ensure applesmc.sys driver is bundled in publish directory
+Copy-Item "$PSScriptRoot\..\src\MacFanControl.UI\applesmc.sys" -Destination "$OutputDir\applesmc.sys" -Force -ErrorAction SilentlyContinue
+
 Write-Host "[3/3] Build completed successfully!" -ForegroundColor Green
 Write-Host "Executable generated at: $OutputDir/MacFanControl.UI.exe" -ForegroundColor Green
 Write-Host "Note: Right-click and 'Run as administrator' for full SMC fan control." -ForegroundColor Cyan

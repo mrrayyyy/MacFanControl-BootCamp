@@ -44,6 +44,36 @@ public class AppleSmcService : ISmcService
         if (_deviceHandle != null && !_deviceHandle.IsInvalid)
             return true;
 
+        // Attempt 1: Try opening candidate device paths directly
+        if (TryOpenCandidateDevices(out var handle, out var openedPath))
+        {
+            return FinalizeDeviceConnection(handle, openedPath);
+        }
+
+        // If direct open failed, the kernel driver service might not be running (e.g. after a system reboot)
+        DiagnosticLogger.Instance.Warn("Could not open SMC device handle. Checking and starting AppleSMC driver service...");
+        bool serviceStarted = SmcDriverServiceManager.EnsureDriverServiceRunning();
+
+        if (serviceStarted)
+        {
+            // Allow brief moment for Windows Object Manager to expose the device symlink
+            Thread.Sleep(200);
+
+            // Attempt 2: Retry opening after starting driver service
+            if (TryOpenCandidateDevices(out handle, out openedPath))
+            {
+                return FinalizeDeviceConnection(handle, openedPath);
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryOpenCandidateDevices([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out SafeFileHandle? validHandle, out string openedPath)
+    {
+        validHandle = null;
+        openedPath = string.Empty;
+
         string[] candidatePaths = { @"\\.\AppleSMC", @"\\.\SMC", @"\\.\AppleSMC0", @"\\.\AppleSMC1" };
 
         foreach (var path in candidatePaths)
@@ -64,13 +94,8 @@ public class AppleSmcService : ISmcService
 
                 if (handle != null && !handle.IsInvalid)
                 {
-                    _deviceHandle = handle;
-                    _useSimulation = false;
-
-                    // Initialize Apple SMC communication
-                    byte[] initOut = new byte[1];
-                    SmcNative.DeviceIoControl(handle, SmcNative.IOCTL_SMC_INIT, null, 0, initOut, 1, out _, IntPtr.Zero);
-
+                    validHandle = handle;
+                    openedPath = path;
                     DiagnosticLogger.Instance.Info($"Successfully opened handle to {path} (Win32 Error: {lastError})");
                     return true;
                 }
@@ -86,6 +111,19 @@ public class AppleSmcService : ISmcService
         }
 
         return false;
+    }
+
+    private bool FinalizeDeviceConnection(SafeFileHandle handle, string openedPath)
+    {
+        _deviceHandle = handle;
+        _useSimulation = false;
+
+        // Initialize Apple SMC communication
+        byte[] initOut = new byte[1];
+        SmcNative.DeviceIoControl(handle, SmcNative.IOCTL_SMC_INIT, null, 0, initOut, 1, out _, IntPtr.Zero);
+
+        DiagnosticLogger.Instance.Info($"Apple SMC device connected successfully on {openedPath}!");
+        return true;
     }
 
     private void ProbeSmcCapabilities()

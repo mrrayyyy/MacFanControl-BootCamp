@@ -18,4 +18,10 @@
     <ProjectReference Include="..\MacFanControl.SMC\MacFanControl.SMC.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="applesmc.sys">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
