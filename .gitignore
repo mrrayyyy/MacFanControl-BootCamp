@@ -1,0 +1,30 @@
+## Build and Release Folders
+bin/
+obj/
+out/
+build/
+
+## Visual Studio & Rider
+.vs/
+.idea/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+## Windows specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+## Logs and Temp
+*.log
+*.tmp
+*.bak
+[Tt]emp/
+
+## NuGet
+*.nupkg
+packages/
+!packages/build/
