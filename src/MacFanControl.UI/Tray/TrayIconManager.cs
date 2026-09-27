@@ -9,12 +9,14 @@ namespace MacFanControl.UI.Tray;
 
 public class TrayIconManager : IDisposable
 {
-    private readonly NotifyIcon _notifyIcon;
+    private readonly NotifyIcon _cpuNotifyIcon;
+    private readonly NotifyIcon _gpuNotifyIcon;
     private readonly Action _onOpenWindow;
     private readonly Action _onOpenSettings;
     private readonly Action<FanMode> _onSetMode;
     private readonly Action _onExitApp;
-    private IntPtr _lastHIcon = IntPtr.Zero;
+    private IntPtr _lastCpuHIcon = IntPtr.Zero;
+    private IntPtr _lastGpuHIcon = IntPtr.Zero;
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr hIcon);
@@ -30,16 +32,36 @@ public class TrayIconManager : IDisposable
         _onSetMode = onSetMode;
         _onExitApp = onExitApp;
 
-        _notifyIcon = new NotifyIcon
+        // 1. CPU Tray Icon
+        _cpuNotifyIcon = new NotifyIcon
         {
             Visible = true,
-            Text = "MacFanControl BootCamp"
+            Text = "MacFanControl: CPU"
         };
+        _cpuNotifyIcon.MouseClick += HandleIconClick;
+        _cpuNotifyIcon.MouseDoubleClick += (s, e) => _onOpenWindow();
+        _cpuNotifyIcon.ContextMenuStrip = CreateContextMenu();
 
-        _notifyIcon.MouseDoubleClick += (s, e) => _onOpenWindow();
-        _notifyIcon.ContextMenuStrip = CreateContextMenu();
+        // 2. GPU Tray Icon
+        _gpuNotifyIcon = new NotifyIcon
+        {
+            Visible = true,
+            Text = "MacFanControl: GPU"
+        };
+        _gpuNotifyIcon.MouseClick += HandleIconClick;
+        _gpuNotifyIcon.MouseDoubleClick += (s, e) => _onOpenWindow();
+        _gpuNotifyIcon.ContextMenuStrip = CreateContextMenu();
 
+        // Initial default render
         UpdateTemperatureIcon(50f, 48f);
+    }
+
+    private void HandleIconClick(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+        {
+            _onOpenWindow();
+        }
     }
 
     private ContextMenuStrip CreateContextMenu()
@@ -85,82 +107,51 @@ public class TrayIconManager : IDisposable
             int cpuInt = Math.Clamp((int)Math.Round(cpuTemp), 0, 999);
             int gpuInt = Math.Clamp((int)Math.Round(gpuTemp), 0, 999);
 
-            string cpuText = cpuInt.ToString();
-            string gpuText = gpuInt.ToString();
-
-            // CPU Color threshold
+            // CPU Color: Green (<60) -> Amber (60-78) -> Red (>=79)
             Color cpuColor = cpuInt < 60
-                ? Color.FromArgb(76, 217, 100)   // Green
-                : cpuInt < 78
-                    ? Color.FromArgb(255, 149, 0)  // Orange
-                    : Color.FromArgb(255, 59, 48);   // Red
+                ? Color.FromArgb(76, 217, 100)    // Crisp Green
+                : cpuInt < 79
+                    ? Color.FromArgb(255, 159, 10)  // Warm Amber
+                    : Color.FromArgb(255, 69, 58);   // Vibrant Red
 
-            // GPU Color threshold
+            // GPU Color: Cyan/Cool Blue (<60) -> Amber (60-75) -> Red (>=75)
             Color gpuColor = gpuInt < 60
-                ? Color.FromArgb(0, 220, 255)   // Cyan / Cool Blue
+                ? Color.FromArgb(10, 215, 255)   // Vibrant Cyan
                 : gpuInt < 75
-                    ? Color.FromArgb(255, 175, 40) // Amber
-                    : Color.FromArgb(255, 65, 54);  // Red
+                    ? Color.FromArgb(255, 180, 40)  // Warm Amber
+                    : Color.FromArgb(255, 69, 58);   // Vibrant Red
 
-            using var bmp = new Bitmap(32, 32);
-            using var g = Graphics.FromImage(bmp);
+            // 1. Render CPU Icon (Transparent background, bold colored number)
+            var (cpuIcon, cpuHIcon) = CreateNumericIcon(cpuInt, cpuColor);
+            var oldCpuIcon = _cpuNotifyIcon.Icon;
+            _cpuNotifyIcon.Icon = cpuIcon;
+            oldCpuIcon?.Dispose();
 
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            g.Clear(Color.Transparent);
+            string cpuTip = $"CPU: {cpuInt}°C (MacFanControl)";
+            if (cpuTip.Length >= 64) cpuTip = cpuTip.Substring(0, 63);
+            _cpuNotifyIcon.Text = cpuTip;
 
-            // Draw dark rounded pill background
-            using var path = CreateRoundedRectanglePath(new Rectangle(0, 0, 31, 31), 6);
-            using var bgBrush = new SolidBrush(Color.FromArgb(240, 16, 17, 22));
-            g.FillPath(bgBrush, path);
-
-            using var borderPen = new Pen(Color.FromArgb(60, 255, 255, 255), 1);
-            g.DrawPath(borderPen, path);
-
-            // Subtle divider line between CPU (top) and GPU (bottom)
-            using var divPen = new Pen(Color.FromArgb(45, 255, 255, 255), 1);
-            g.DrawLine(divPen, 3, 16, 28, 16);
-
-            var stringFormat = new StringFormat
+            if (_lastCpuHIcon != IntPtr.Zero)
             {
-                Alignment = StringAlignment.Center,
-                LineAlignment = StringAlignment.Center
-            };
-
-            // Font sizing: compact if 3 digits
-            float cpuFontSize = cpuText.Length >= 3 ? 9.5f : 12f;
-            float gpuFontSize = gpuText.Length >= 3 ? 9.5f : 12f;
-
-            // 1. Draw CPU Temp on TOP row
-            using (var cpuFont = new Font("Segoe UI", cpuFontSize, FontStyle.Bold, GraphicsUnit.Pixel))
-            using (var cpuBrush = new SolidBrush(cpuColor))
-            {
-                g.DrawString(cpuText, cpuFont, cpuBrush, new RectangleF(0, 0.5f, 32, 15), stringFormat);
+                DestroyIcon(_lastCpuHIcon);
             }
+            _lastCpuHIcon = cpuHIcon;
 
-            // 2. Draw GPU Temp on BOTTOM row
-            using (var gpuFont = new Font("Segoe UI", gpuFontSize, FontStyle.Bold, GraphicsUnit.Pixel))
-            using (var gpuBrush = new SolidBrush(gpuColor))
+            // 2. Render GPU Icon (Transparent background, bold colored number)
+            var (gpuIcon, gpuHIcon) = CreateNumericIcon(gpuInt, gpuColor);
+            var oldGpuIcon = _gpuNotifyIcon.Icon;
+            _gpuNotifyIcon.Icon = gpuIcon;
+            oldGpuIcon?.Dispose();
+
+            string gpuTip = $"GPU: {gpuInt}°C (MacFanControl)";
+            if (gpuTip.Length >= 64) gpuTip = gpuTip.Substring(0, 63);
+            _gpuNotifyIcon.Text = gpuTip;
+
+            if (_lastGpuHIcon != IntPtr.Zero)
             {
-                g.DrawString(gpuText, gpuFont, gpuBrush, new RectangleF(0, 16.5f, 32, 15), stringFormat);
+                DestroyIcon(_lastGpuHIcon);
             }
-
-            IntPtr hIcon = bmp.GetHicon();
-            var icon = Icon.FromHandle(hIcon);
-
-            _notifyIcon.Icon = icon;
-
-            string tooltip = $"MacFanControl: CPU {cpuInt}°C | GPU {gpuInt}°C";
-            if (tooltip.Length >= 64) tooltip = tooltip.Substring(0, 63);
-            _notifyIcon.Text = tooltip;
-
-            // Prevent GDI resource leaks
-            if (_lastHIcon != IntPtr.Zero)
-            {
-                DestroyIcon(_lastHIcon);
-            }
-            _lastHIcon = hIcon;
+            _lastGpuHIcon = gpuHIcon;
         }
         catch
         {
@@ -168,40 +159,83 @@ public class TrayIconManager : IDisposable
         }
     }
 
-    private static GraphicsPath CreateRoundedRectanglePath(Rectangle rect, int cornerRadius)
+    private static (Icon icon, IntPtr hIcon) CreateNumericIcon(int tempValue, Color textColor)
     {
-        var path = new GraphicsPath();
-        int diameter = cornerRadius * 2;
-        var arc = new Rectangle(rect.Location, new Size(diameter, diameter));
+        const int size = 32;
+        var bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
-        // Top left
-        path.AddArc(arc, 180, 90);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.Clear(Color.Transparent);
 
-        // Top right
-        arc.X = rect.Right - diameter;
-        path.AddArc(arc, 270, 90);
+            string text = tempValue.ToString();
 
-        // Bottom right
-        arc.Y = rect.Bottom - diameter;
-        path.AddArc(arc, 0, 90);
+            // Font sizing:
+            // 1 digit (0-9)    -> 22px
+            // 2 digits (10-99) -> 18px (fits completely in 32px canvas without clipping)
+            // 3 digits (100+)  -> 13px
+            float fontSize = text.Length switch
+            {
+                1 => 22f,
+                2 => 18f,
+                _ => 13f
+            };
 
-        // Bottom left
-        arc.X = rect.Left;
-        path.AddArc(arc, 90, 90);
+            using var font = new Font("Segoe UI", fontSize, FontStyle.Bold, GraphicsUnit.Pixel);
+            using var sf = new StringFormat(StringFormat.GenericTypographic)
+            {
+                Alignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Center
+            };
 
-        path.CloseFigure();
-        return path;
+            var rect = new RectangleF(0, 0, size, size);
+
+            // Subtle dark outline/shadow (1px offset) to ensure 100% visibility on both dark and light taskbars
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(150, 0, 0, 0)))
+            {
+                g.DrawString(text, font, shadowBrush, new RectangleF(-1f, 0f, size, size), sf);
+                g.DrawString(text, font, shadowBrush, new RectangleF(1f, 0f, size, size), sf);
+                g.DrawString(text, font, shadowBrush, new RectangleF(0f, -1f, size, size), sf);
+                g.DrawString(text, font, shadowBrush, new RectangleF(0f, 1f, size, size), sf);
+            }
+
+            // Draw crisp colored number
+            using var textBrush = new SolidBrush(textColor);
+            g.DrawString(text, font, textBrush, rect, sf);
+        }
+
+        IntPtr hIcon = bmp.GetHicon();
+        var icon = Icon.FromHandle(hIcon);
+        bmp.Dispose();
+        return (icon, hIcon);
     }
 
     public void Dispose()
     {
-        _notifyIcon.Visible = false;
-        _notifyIcon.Dispose();
+        _cpuNotifyIcon.Visible = false;
+        var oldCpu = _cpuNotifyIcon.Icon;
+        _cpuNotifyIcon.Dispose();
+        oldCpu?.Dispose();
 
-        if (_lastHIcon != IntPtr.Zero)
+        _gpuNotifyIcon.Visible = false;
+        var oldGpu = _gpuNotifyIcon.Icon;
+        _gpuNotifyIcon.Dispose();
+        oldGpu?.Dispose();
+
+        if (_lastCpuHIcon != IntPtr.Zero)
         {
-            DestroyIcon(_lastHIcon);
-            _lastHIcon = IntPtr.Zero;
+            DestroyIcon(_lastCpuHIcon);
+            _lastCpuHIcon = IntPtr.Zero;
+        }
+
+        if (_lastGpuHIcon != IntPtr.Zero)
+        {
+            DestroyIcon(_lastGpuHIcon);
+            _lastGpuHIcon = IntPtr.Zero;
         }
 
         GC.SuppressFinalize(this);

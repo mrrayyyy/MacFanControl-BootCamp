@@ -2,7 +2,7 @@ namespace MacFanControl.Core.Models;
 
 public class FanCurveConfig
 {
-    public string SensorName { get; set; } = "CPU Package";
+    public string SensorName { get; set; } = "CPU Core Average";
     public float MinTemp { get; set; } = 50f;
     public float MaxTemp { get; set; } = 85f;
     public float MinFanPercent { get; set; } = 25f;
@@ -23,18 +23,19 @@ public class FanCurveConfig
 
 public class AppSettings
 {
+    public bool MigratedToCoreAverage { get; set; } = false;
     public bool StartWithWindows { get; set; } = false;
     public bool StartMinimizedToTray { get; set; } = true;
     public bool MinimizeOnClose { get; set; } = true;
     public int PollingIntervalMs { get; set; } = 1500;
-    public bool LinkBothFans { get; set; } = true;
+    public bool LinkBothFans { get; set; } = false;
     public FanMode CurrentMode { get; set; } = FanMode.Curve;
     public float ManualTargetRpm { get; set; } = 3500;
 
     // Independent Temperature-Based Control Configurations
     public FanCurveConfig LeftFanCurve { get; set; } = new()
     {
-        SensorName = "CPU Package",
+        SensorName = "CPU Core Average",
         MinTemp = 50f,
         MaxTemp = 85f,
         MinFanPercent = 25f,

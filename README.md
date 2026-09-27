@@ -16,19 +16,27 @@ Equipped with an Intel Core i9 processor, an AMD Radeon Pro GPU, and the **Apple
 ## 🌟 Key Features
 
 * **Real-time Hardware Monitoring**:
-  * **CPU**: Package temperature, max core temperature, power consumption (Watts), and utilization percentage via Intel DTS / MSR.
+  * **CPU**: Package temperature, Core Average (mean across all 8 cores), Max Core temperature, individual Cores #1–#8, power consumption (Watts), and utilization percentage via Intel DTS / MSR.
   * **GPU**: AMD Radeon Pro core temperature, hotspot temperature, GPU power, and load percentage via AMD ADL API.
   * **Fans**: Real-time RPM tracking and percentage gauges for both **Left Fan (CPU)** and **Right Fan (GPU)**.
-* **Intelligent Fan Control**:
-  * **Custom Fan Curves**: Smooth temperature-to-RPM curves with built-in **Hysteresis** (3°C) to prevent erratic fan speed oscillations and noise pulsing.
-  * **Fixed Manual Mode**: Precision slider control from minimum (~1,800 RPM) to maximum (~5,616 RPM).
-  * **100% Turbo Mode**: Instant full-blast cooling for intensive gaming, 3D rendering, or video exports.
-  * **Apple Auto Mode**: One-click restore to Apple's native SMC thermal management.
-  * **Fail-Safe Protection**: Automatically restores Apple default fan management upon application exit or crash.
-* **User Experience & System Integration**:
-  * **Fluent Dark UI**: Modern dark theme matching macOS aesthetics, built with WPF on .NET 8.
-  * **Dynamic System Tray Icon**: Real-time CPU temperature drawn directly onto the Windows taskbar icon with adaptive color coding (Green < 60°C, Orange 60–78°C, Red > 78°C).
-  * **Silent Windows Startup (UAC Bypass)**: Automatically registers a task in Windows Task Scheduler with `HighestAvailable` privileges, enabling the app to boot minimized to tray without annoying UAC prompts.
+* **Intelligent Independent Fan Control**:
+  * **Dual Independent Tuning**: Configure Left Fan and Right Fan separately, each linked to any desired sensor.
+  * **Sensor Selection**:
+    * 📊 `CPU Core Average`: Dynamic real-time average across all CPU cores (Default for Left Fan).
+    * 🔥 `CPU Max Core`: Automatically tracks the hottest core.
+    * ⚡ `Core #1` to `Core #8`: Lock fan response to any specific individual core.
+    * 📦 `CPU Package`: Overall processor package temperature.
+    * 🎮 `GPU Core` & `GPU Hot Spot`: Dedicated graphics processor sensors.
+    * 🔺 `Highest (CPU / GPU)`: Automatically tracks the higher of CPU or GPU temps.
+  * **Interactive Numeric Steppers**: Up/Down arrow buttons (▲ / ▼) on every input box for easy 1°C / 5% stepping, with direct keyboard typing supported.
+  * **Anti-Jitter Smooth Engine**: EMA (Exponential Moving Average) filtering + asymmetric slew-rate limiters (fast ramp-up, smooth gradual ramp-down) completely eliminates fan noise pulsating.
+  * **100% Turbo Mode**: One-click instant maximum cooling (~5,616 RPM) for intensive rendering and gaming.
+  * **Apple Auto Mode**: Restores Apple's native SMC firmware fan management.
+  * **Fail-Safe Protection**: Automatically restores Apple defaults on app exit or crash.
+* **Modern UI & Windows System Integration**:
+  * **Fluent Dark UI**: Polished dark theme inspired by macOS design language, built with WPF on .NET 8.
+  * **Dual Tray Icon**: Displays both CPU and GPU temperatures side-by-side on the Windows taskbar with color-coded alerts (Green < 60°C, Orange 60–78°C, Red > 78°C).
+  * **Silent Windows Startup (UAC Bypass)**: Automatically registers a task in Windows Task Scheduler with `HighestAvailable` privileges, enabling seamless boot minimized to tray.
 
 ---
 
@@ -41,8 +49,7 @@ Equipped with an Intel Core i9 processor, an AMD Radeon Pro GPU, and the **Apple
   * Controller: **Apple T2 Security Chip**
 * **Operating System**: Windows 10 64-bit (or Windows 11) installed via Boot Camp.
 * **Prerequisites**:
-  * Apple Boot Camp Support Software drivers installed (specifically `AppleSMC.sys`).
-  * [.NET 8.0 Desktop Runtime x64](https://dotnet.microsoft.com/download/dotnet/8.0) (not required if using the self-contained build).
+  * Apple Boot Camp Support Software drivers installed (`AppleSMC.sys`).
   * **Administrator Privileges**: Required to interface with low-level hardware sensors and the SMC kernel driver.
 
 ---
@@ -59,7 +66,7 @@ On 2018+ Intel Macs, Apple replaced the legacy x86 I/O port `0x300` SMC interfac
                             │
 ┌───────────────────────────▼────────────────────────────┐
 │                    MacFanControl.Core                  │
-│    (Models, Hysteresis Fan Curve Engine, Settings)     │
+│    (Models, Anti-Jitter EMA & Slew-Rate Curve Engine)  │
 └─────────────┬────────────────────────────┬─────────────┘
               │                            │
 ┌─────────────▼─────────────┐┌─────────────▼─────────────┐
@@ -77,62 +84,42 @@ On 2018+ Intel Macs, Apple replaced the legacy x86 I/O port `0x300` SMC interfac
 | `FNum` | `ui8` | Total fan count (returns `2`) |
 | `FS! ` | `ui16` | Fan status manual bitmask (Bit 0: Fan 0 Manual, Bit 1: Fan 1 Manual) |
 | `F0Ac` | `fpe2` | Left Fan (CPU) actual speed in RPM |
-| `F0Mn` | `fpe2` | Left Fan minimum speed (~1,800 RPM) |
+| `F0Mn` | `fpe2` | Left Fan minimum speed (~1,836 RPM) |
 | `F0Mx` | `fpe2` | Left Fan maximum speed (~5,616 RPM) |
 | `F0Tg` | `fpe2` | Left Fan target speed in RPM |
 | `F1Ac` | `fpe2` | Right Fan (GPU) actual speed in RPM |
-| `F1Mn` | `fpe2` | Right Fan minimum speed (~1,800 RPM) |
-| `F1Mx` | `fpe2` | Right Fan maximum speed (~5,616 RPM) |
+| `F1Mn` | `fpe2` | Right Fan minimum speed (~1,700 RPM) |
+| `F1Mx` | `fpe2` | Right Fan maximum speed (~5,200 RPM) |
 | `F1Tg` | `fpe2` | Right Fan target speed in RPM |
 
 ---
 
-## 🚀 Installation & Building Guide
+## 🚀 Installation & Running
 
-### Option 1: Quick Build (Double-Click Batch File)
+### Ready-to-Run Portable Package
+The application is pre-packaged in the [`publish/`](file:///publish) directory:
+```text
+publish\
+├── MacFanControl.UI.exe   # Single-file self-contained application
+└── applesmc.sys           # Apple T2 SMC kernel driver
+```
 
-1. Boot into **Windows 10 Boot Camp**.
-2. Clone this repository:
-   ```cmd
-   git clone https://github.com/mrrayyyy/MacFanControl-BootCamp.git
-   cd MacFanControl-BootCamp
-   ```
-3. Double-click `scripts\build.bat` (or run it in Command Prompt).
-4. The script will automatically restore NuGet packages and build a **single-file self-contained executable** at:
-   ```text
-   publish\MacFanControl.UI.exe
-   ```
-5. Right-click `publish\MacFanControl.UI.exe` and select **Run as administrator**.
+To run:
+1. Right-click `publish\MacFanControl.UI.exe` and select **Run as administrator**.
+2. If the Apple SMC driver service is not yet registered on your BootCamp installation, run `scripts\fix_smc_driver.bat` once as Administrator.
 
 ---
 
-### Option 2: Build via PowerShell
+### Building from Source
 
-1. Open **PowerShell** as Administrator:
-   ```powershell
-   cd path\to\MacFanControl-BootCamp
-   .\scripts\build.ps1
-   ```
-2. The output executable will be placed in `./publish/MacFanControl.UI.exe`.
+**Option 1: Double-Click Batch File**
+1. Double-click `scripts\build.bat`.
+2. The single-file executable will be compiled to `publish\MacFanControl.UI.exe`.
 
----
-
-### Option 3: Manual .NET CLI Build
-
-If you prefer building manually with the .NET SDK:
-
-```bash
-# 1. Restore dependencies
-dotnet restore src/MacFanControl.UI/MacFanControl.UI.csproj -r win-x64
-
-# 2. Publish as single-file self-contained executable
-dotnet publish src/MacFanControl.UI/MacFanControl.UI.csproj \
-  -c Release \
-  -r win-x64 \
-  --self-contained true \
-  -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
-  -o ./publish
+**Option 2: .NET CLI**
+```cmd
+dotnet publish src/MacFanControl.UI/MacFanControl.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish
+copy /y "src\MacFanControl.UI\applesmc.sys" "publish\applesmc.sys"
 ```
 
 ---
@@ -140,20 +127,19 @@ dotnet publish src/MacFanControl.UI/MacFanControl.UI.csproj \
 ## 🖥️ Usage Guide
 
 1. **Dashboard Overview**:
-   * Watch live CPU Package and AMD GPU temperatures.
-   * View live Left & Right fan speeds and percentages.
-2. **Selecting a Mode**:
-   * **Apple Default**: Lets Windows Boot Camp firmware control fans.
-   * **Custom Curve**: Automatically throttles fans up and down based on target temperatures.
-   * **Fixed Manual**: Drag the RPM slider to lock in a specific fan speed.
-   * **100% Turbo**: Instantly sets both fans to maximum speed (~5,616 RPM).
-3. **Profiles**:
-   * **Aggressive (Gaming & Rendering)**: Begins ramping up at 45°C; hits 90% at 80°C and 100% at 85°C.
-   * **Quiet (Office & Media)**: Stays quiet until 65°C; reaches 80% at 85°C.
+   * Watch live CPU Package, GPU Core, and fan RPMs.
+   * Switch between **Apple Default**, **Custom Temp Control**, and **100% Turbo Max**.
+2. **Temperature-Based Fan Tuning**:
+   * Set Min Temp and Min % (idle speed).
+   * Set Max Temp and Max % (full throttle speed).
+   * Use the **▲ / ▼** arrows to easily fine-tune thresholds.
+3. **Settings & Auto-Start**:
+   * Enable **Start with Windows (Boot Camp)** to launch silently at login via Task Scheduler with highest privileges (no UAC popup).
+   * Enable **Start Minimized to Tray** for background operation.
 4. **System Tray**:
-   * Closing the application window (`X`) minimizes it directly to the system tray.
-   * Hover over the tray icon or right-click to switch profiles on the fly.
-   * To close completely, right-click the tray icon and select **Exit MacFanControl**.
+   * Minimizing or closing the window sends the app to the Windows notification area.
+   * The tray icon dynamically renders both CPU and GPU temperatures side-by-side in real-time.
+   * Right-click the tray icon to switch fan modes or select **Exit**.
 
 ---
 

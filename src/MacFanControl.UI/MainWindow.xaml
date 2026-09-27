@@ -15,7 +15,6 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-        <local:BoolToInvertBoolConverter x:Key="BoolToInvertBoolConverter"/>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -346,40 +345,183 @@
                 </Grid>
             </Border>
 
-            <!-- INDEPENDENT LEFT & RIGHT FAN CURVE CUSTOMIZATION -->
-            <Border Grid.Row="2" Style="{StaticResource ModernCard}" Padding="16">
+            <!-- 1. APPLE AUTO MODE STATUS CARD (HIỆN KHI CHỌN APPLE DEFAULT) -->
+            <Border Grid.Row="2" Padding="32,28">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource ModernCard}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedMode}" Value="AppleAuto">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+
+                <Grid VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Icon & Title -->
+                    <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,16">
+                        <Border Width="60" Height="60" CornerRadius="30" Background="#162E20" BorderBrush="{StaticResource AccentGreenBrush}" BorderThickness="1.5" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <TextBlock Text="🍏" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Chế độ Mặc định Apple (Apple SMC Auto)" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Hệ thống SMC đang tự động quản lý quạt theo thuật toán Apple" FontSize="12" Foreground="{StaticResource AccentGreenBrush}" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <!-- Explanatory Box -->
+                    <Border Grid.Row="1" Background="#161822" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="18,14" Margin="0,0,0,18">
+                        <StackPanel>
+                            <TextBlock Text="• Quạt được điều khiển hoàn toàn tự động bởi chip Apple SMC theo tiêu chuẩn macOS / Boot Camp." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                            <TextBlock Text="• Tùy chỉnh đường cong nhiệt độ được ẩn vì phần mềm không can thiệp vào vòng quay quạt ở chế độ này." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                            <TextBlock Text="• Để tự đặt nhiệt độ và mức quay quạt cho từng quạt, hãy chuyển sang chế độ Custom Temp Control." FontSize="12" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Current Status Readout -->
+                    <UniformGrid Grid.Row="2" Columns="2" Margin="0,0,0,18">
+                        <Border Background="#1C1E2A" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,8,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Quạt Trái (CPU)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding Fan0.CurrentRpm, StringFormat='{}{0:F0}'}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text=" RPM" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="4,0,0,3"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#1C1E2A" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="8,0,0,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Quạt Phải (GPU)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding Fan1.CurrentRpm, StringFormat='{}{0:F0}'}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text=" RPM" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="4,0,0,3"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Switch to Custom Mode Button -->
+                    <Button Grid.Row="3" Command="{Binding SetCurveCommand}" Style="{StaticResource ModernButton}" Height="34" Padding="18,0" HorizontalAlignment="Center" Cursor="Hand">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚡ Chuyển sang Tùy chỉnh quạt theo nhiệt độ" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- 2. 100% TURBO MAX STATUS CARD (HIỆN KHI CHỌN 100% TURBO) -->
+            <Border Grid.Row="2" Padding="32,28">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource ModernCard}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedMode}" Value="Turbo">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+
+                <Grid VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Icon & Title -->
+                    <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,16">
+                        <Border Width="60" Height="60" CornerRadius="30" Background="#331416" BorderBrush="{StaticResource AccentRedBrush}" BorderThickness="1.5" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <TextBlock Text="🚀" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Chế độ 100% Turbo Max (Làm mát cực đại)" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Cả hai quạt đang được khóa cố định ở mức 100% công suất" FontSize="12" Foreground="{StaticResource AccentRedBrush}" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <!-- Explanatory Box -->
+                    <Border Grid.Row="1" Background="#161822" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="18,14" Margin="0,0,0,18">
+                        <StackPanel>
+                            <TextBlock Text="• Cả hai quạt (Left Fan &amp; Right Fan) đang chạy ở tốc độ tối đa (~5900 RPM) để giải nhiệt tức thì." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                            <TextBlock Text="• Tùy chỉnh đường cong nhiệt độ được ẩn vì quạt luôn chạy hết công suất liên tục." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                            <TextBlock Text="• Khuyến nghị sử dụng khi xuất video nặng, 3D render hoặc chơi game đồ họa cao để hạ nhiệt nhanh." FontSize="12" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Current Status Readout -->
+                    <UniformGrid Grid.Row="2" Columns="2" Margin="0,0,0,18">
+                        <Border Background="#1C1E2A" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,8,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Quạt Trái (CPU) - 100% MAX" FontSize="11" Foreground="{StaticResource AccentRedBrush}" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding Fan0.CurrentRpm, StringFormat='{}{0:F0}'}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text=" RPM" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="4,0,0,3"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#1C1E2A" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="8,0,0,0">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="Quạt Phải (GPU) - 100% MAX" FontSize="11" Foreground="{StaticResource AccentRedBrush}" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding Fan1.CurrentRpm, StringFormat='{}{0:F0}'}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text=" RPM" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="4,0,0,3"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Quick Switch Buttons -->
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Command="{Binding SetCurveCommand}" Style="{StaticResource ModernButton}" Height="34" Padding="16,0" Margin="0,0,10,0" Cursor="Hand">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⚡ Quay lại Tùy chỉnh nhiệt độ" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding SetAppleAutoCommand}" Style="{StaticResource ModernButton}" Height="34" Padding="16,0" Cursor="Hand">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🍏 Trả về Mặc định Apple" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 3. INDEPENDENT LEFT & RIGHT FAN CURVE CUSTOMIZATION (HIỆN KHI CHỌN CUSTOM TEMP CONTROL) -->
+            <Border Grid.Row="2" Padding="16">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource ModernCard}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedMode}" Value="AppleAuto">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding SelectedMode}" Value="Turbo">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <!-- Header & Presets -->
+                        <RowDefinition Height="Auto"/> <!-- Header Title -->
                         <RowDefinition Height="*"/>    <!-- Left & Right Cards -->
                         <RowDefinition Height="Auto"/> <!-- Smoothing & Acoustic Info -->
                     </Grid.RowDefinitions>
 
-                    <!-- Top Bar: Title & Quick Presets & Link Fans Toggle -->
-                    <Grid Grid.Row="0" Margin="0,0,0,16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Temperature-Based Fan Tuning (Tùy chỉnh quạt theo nhiệt độ)" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="Tự nhập ngưỡng nhiệt độ (°C) và phần trăm sức mạnh quạt (%) tương ứng cho từng quạt." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <!-- Presets -->
-                            <TextBlock Text="Presets:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Quiet" Content="Quiet (Office)" Style="{StaticResource ModernButton}" Height="28" Padding="8,0" Margin="0,0,6,0"/>
-                            <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Balanced" Content="Balanced" Style="{StaticResource ModernButton}" Height="28" Padding="8,0" Margin="0,0,6,0"/>
-                            <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Gaming" Content="Gaming &amp; Render" Style="{StaticResource ModernButton}" Height="28" Padding="8,0" Margin="0,0,14,0"/>
-
-                            <!-- Link Both Fans Checkbox -->
-                            <Border Background="#1C1E2A" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,4">
-                                <CheckBox IsChecked="{Binding LinkBothFans, Mode=TwoWay}" Content="Link both fans (Đồng bộ 2 quạt)" FontWeight="SemiBold"/>
-                            </Border>
-                        </StackPanel>
-                    </Grid>
+                    <!-- Top Bar: Title & Description -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="Temperature-Based Fan Tuning (Tùy chỉnh quạt theo nhiệt độ)" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Tự nhập ngưỡng nhiệt độ (°C) và phần trăm sức mạnh quạt (%) tương ứng cho từng quạt." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                    </StackPanel>
 
                     <!-- Left Fan & Right Fan Side-by-Side Tuning Columns -->
                     <Grid Grid.Row="1">
@@ -404,11 +546,20 @@
                                     <StackPanel>
                                         <TextBlock Text="🌀 Left Fan (Quạt Trái - Phía CPU)" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                         <TextBlock Text="Điều khiển dựa trên cảm biến nhiệt độ:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,4"/>
-                                        <ComboBox SelectedValue="{Binding LeftSensorName, Mode=TwoWay}" SelectedValuePath="Content" Height="28" Background="{StaticResource InputBgBrush}" Foreground="{StaticResource TextPrimaryBrush}">
-                                            <ComboBoxItem Content="CPU Package"/>
-                                            <ComboBoxItem Content="CPU Max Core"/>
-                                            <ComboBoxItem Content="GPU Core"/>
-                                            <ComboBoxItem Content="Highest (CPU / GPU)"/>
+                                        <ComboBox SelectedValue="{Binding LeftSensorName, Mode=TwoWay}" SelectedValuePath="Tag" Height="32">
+                                            <ComboBoxItem Tag="CPU Core Average" Content="📊 CPU Core Average (Trung bình các nhân)"/>
+                                            <ComboBoxItem Tag="CPU Max Core" Content="🔥 CPU Max Core (Lõi nóng nhất)"/>
+                                            <ComboBoxItem Tag="CPU Package" Content="📦 CPU Package (Nhiệt độ toàn bộ CPU)"/>
+                                            <ComboBoxItem Tag="Core #1" Content="⚡ CPU Core #1"/>
+                                            <ComboBoxItem Tag="Core #2" Content="⚡ CPU Core #2"/>
+                                            <ComboBoxItem Tag="Core #3" Content="⚡ CPU Core #3"/>
+                                            <ComboBoxItem Tag="Core #4" Content="⚡ CPU Core #4"/>
+                                            <ComboBoxItem Tag="Core #5" Content="⚡ CPU Core #5"/>
+                                            <ComboBoxItem Tag="Core #6" Content="⚡ CPU Core #6"/>
+                                            <ComboBoxItem Tag="Core #7" Content="⚡ CPU Core #7"/>
+                                            <ComboBoxItem Tag="Core #8" Content="⚡ CPU Core #8"/>
+                                            <ComboBoxItem Tag="GPU Core" Content="🎮 GPU Core (Nhân đồ họa)"/>
+                                            <ComboBoxItem Tag="Highest (CPU / GPU)" Content="🔺 Highest (Cao nhất giữa CPU &amp; GPU)"/>
                                         </ComboBox>
                                     </StackPanel>
                                 </Grid>
@@ -424,20 +575,58 @@
 
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Nhiệt độ Bắt đầu (Min °C)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBox Text="{Binding LeftMinTemp, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
-                                                <TextBlock Text=" °C" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="Dưới mức này chạy Min %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Height="34" Width="108" HorizontalAlignment="Left">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="22"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="0" Text="{Binding LeftMinTemp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}"/>
+                                                    <TextBlock Grid.Column="1" Text="°C" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
+                                                    <Grid Grid.Column="2" Margin="0,1,1,1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="*"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Button Grid.Row="0" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeLeftMinTempCommand}" CommandParameter="1" ToolTip="Tăng 1 °C">
+                                                            <Path Data="M0,4 L3.5,0 L7,4" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                        <Button Grid.Row="1" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeLeftMinTempCommand}" CommandParameter="-1" ToolTip="Giảm 1 °C">
+                                                            <Path Data="M0,0 L3.5,4 L7,0" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="Dưới mức này chạy Min %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Sức mạnh quạt (Min %)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBox Text="{Binding LeftMinPercent, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
-                                                <TextBlock Text=" %" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="Tốc độ quạt mức thấp nhất" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Height="34" Width="108" HorizontalAlignment="Left">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="22"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="0" Text="{Binding LeftMinPercent, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}"/>
+                                                    <TextBlock Grid.Column="1" Text="%" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
+                                                    <Grid Grid.Column="2" Margin="0,1,1,1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="*"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Button Grid.Row="0" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeLeftMinPercentCommand}" CommandParameter="5" ToolTip="Tăng 5 %">
+                                                            <Path Data="M0,4 L3.5,0 L7,4" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                        <Button Grid.Row="1" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeLeftMinPercentCommand}" CommandParameter="-5" ToolTip="Giảm 5 %">
+                                                            <Path Data="M0,0 L3.5,4 L7,0" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="Tốc độ quạt mức thấp nhất" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -453,20 +642,58 @@
 
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Nhiệt độ Tối đa (Max °C)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBox Text="{Binding LeftMaxTemp, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
-                                                <TextBlock Text=" °C" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="Trên mức này chạy Max %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Height="34" Width="108" HorizontalAlignment="Left">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="22"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="0" Text="{Binding LeftMaxTemp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}"/>
+                                                    <TextBlock Grid.Column="1" Text="°C" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
+                                                    <Grid Grid.Column="2" Margin="0,1,1,1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="*"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Button Grid.Row="0" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeLeftMaxTempCommand}" CommandParameter="1" ToolTip="Tăng 1 °C">
+                                                            <Path Data="M0,4 L3.5,0 L7,4" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                        <Button Grid.Row="1" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeLeftMaxTempCommand}" CommandParameter="-1" ToolTip="Giảm 1 °C">
+                                                            <Path Data="M0,0 L3.5,4 L7,0" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="Trên mức này chạy Max %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Sức mạnh quạt (Max %)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBox Text="{Binding LeftMaxPercent, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
-                                                <TextBlock Text=" %" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="Tốc độ quạt mức tối đa" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Height="34" Width="108" HorizontalAlignment="Left">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="22"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="0" Text="{Binding LeftMaxPercent, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}"/>
+                                                    <TextBlock Grid.Column="1" Text="%" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
+                                                    <Grid Grid.Column="2" Margin="0,1,1,1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="*"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Button Grid.Row="0" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeLeftMaxPercentCommand}" CommandParameter="5" ToolTip="Tăng 5 %">
+                                                            <Path Data="M0,4 L3.5,0 L7,4" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                        <Button Grid.Row="1" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeLeftMaxPercentCommand}" CommandParameter="-5" ToolTip="Giảm 5 %">
+                                                            <Path Data="M0,0 L3.5,4 L7,0" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="Tốc độ quạt mức tối đa" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -503,11 +730,13 @@
                                     <StackPanel>
                                         <TextBlock Text="🌀 Right Fan (Quạt Phải - Phía GPU)" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                         <TextBlock Text="Điều khiển dựa trên cảm biến nhiệt độ:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,4"/>
-                                        <ComboBox SelectedValue="{Binding RightSensorName, Mode=TwoWay}" SelectedValuePath="Content" Height="28" Background="{StaticResource InputBgBrush}" Foreground="{StaticResource TextPrimaryBrush}">
-                                            <ComboBoxItem Content="GPU Core"/>
-                                            <ComboBoxItem Content="GPU Hotspot"/>
-                                            <ComboBoxItem Content="CPU Package"/>
-                                            <ComboBoxItem Content="Highest (CPU / GPU)"/>
+                                        <ComboBox SelectedValue="{Binding RightSensorName, Mode=TwoWay}" SelectedValuePath="Tag" Height="32">
+                                            <ComboBoxItem Tag="GPU Core" Content="🎮 GPU Core (Nhân đồ họa)"/>
+                                            <ComboBoxItem Tag="GPU Hot Spot" Content="🔥 GPU Hot Spot (Điểm nóng nhất GPU)"/>
+                                            <ComboBoxItem Tag="CPU Core Average" Content="📊 CPU Core Average (Trung bình các nhân)"/>
+                                            <ComboBoxItem Tag="CPU Max Core" Content="⚡ CPU Max Core (Lõi nóng nhất)"/>
+                                            <ComboBoxItem Tag="CPU Package" Content="📦 CPU Package (Nhiệt độ toàn bộ CPU)"/>
+                                            <ComboBoxItem Tag="Highest (CPU / GPU)" Content="🔺 Highest (Cao nhất giữa CPU &amp; GPU)"/>
                                         </ComboBox>
                                     </StackPanel>
                                 </Grid>
@@ -523,20 +752,58 @@
 
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Nhiệt độ Bắt đầu (Min °C)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBox Text="{Binding RightMinTemp, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
-                                                <TextBlock Text=" °C" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="Dưới mức này chạy Min %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Height="34" Width="108" HorizontalAlignment="Left">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="22"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="0" Text="{Binding RightMinTemp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}"/>
+                                                    <TextBlock Grid.Column="1" Text="°C" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
+                                                    <Grid Grid.Column="2" Margin="0,1,1,1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="*"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Button Grid.Row="0" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeRightMinTempCommand}" CommandParameter="1" ToolTip="Tăng 1 °C">
+                                                            <Path Data="M0,4 L3.5,0 L7,4" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                        <Button Grid.Row="1" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeRightMinTempCommand}" CommandParameter="-1" ToolTip="Giảm 1 °C">
+                                                            <Path Data="M0,0 L3.5,4 L7,0" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="Dưới mức này chạy Min %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Sức mạnh quạt (Min %)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBox Text="{Binding RightMinPercent, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
-                                                <TextBlock Text=" %" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="Tốc độ quạt mức thấp nhất" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Height="34" Width="108" HorizontalAlignment="Left">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="22"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="0" Text="{Binding RightMinPercent, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}"/>
+                                                    <TextBlock Grid.Column="1" Text="%" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
+                                                    <Grid Grid.Column="2" Margin="0,1,1,1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="*"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Button Grid.Row="0" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeRightMinPercentCommand}" CommandParameter="5" ToolTip="Tăng 5 %">
+                                                            <Path Data="M0,4 L3.5,0 L7,4" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                        <Button Grid.Row="1" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeRightMinPercentCommand}" CommandParameter="-5" ToolTip="Giảm 5 %">
+                                                            <Path Data="M0,0 L3.5,4 L7,0" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="Tốc độ quạt mức thấp nhất" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -552,20 +819,58 @@
 
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Nhiệt độ Tối đa (Max °C)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBox Text="{Binding RightMaxTemp, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
-                                                <TextBlock Text=" °C" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="Trên mức này chạy Max %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Height="34" Width="108" HorizontalAlignment="Left">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="22"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="0" Text="{Binding RightMaxTemp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}"/>
+                                                    <TextBlock Grid.Column="1" Text="°C" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
+                                                    <Grid Grid.Column="2" Margin="0,1,1,1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="*"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Button Grid.Row="0" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeRightMaxTempCommand}" CommandParameter="1" ToolTip="Tăng 1 °C">
+                                                            <Path Data="M0,4 L3.5,0 L7,4" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                        <Button Grid.Row="1" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeRightMaxTempCommand}" CommandParameter="-1" ToolTip="Giảm 1 °C">
+                                                            <Path Data="M0,0 L3.5,4 L7,0" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="Trên mức này chạy Max %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Sức mạnh quạt (Max %)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBox Text="{Binding RightMaxPercent, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
-                                                <TextBlock Text=" %" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="Tốc độ quạt mức tối đa" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Height="34" Width="108" HorizontalAlignment="Left">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="22"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Grid.Column="0" Text="{Binding RightMaxPercent, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource StepperTextBoxStyle}"/>
+                                                    <TextBlock Grid.Column="1" Text="%" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,4,0"/>
+                                                    <Grid Grid.Column="2" Margin="0,1,1,1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="*"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Button Grid.Row="0" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeRightMaxPercentCommand}" CommandParameter="5" ToolTip="Tăng 5 %">
+                                                            <Path Data="M0,4 L3.5,0 L7,4" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                        <Button Grid.Row="1" Style="{StaticResource SpinnerButtonStyle}" Command="{Binding ChangeRightMaxPercentCommand}" CommandParameter="-5" ToolTip="Giảm 5 %">
+                                                            <Path Data="M0,0 L3.5,4 L7,0" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}" StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="Tốc độ quạt mức tối đa" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -634,15 +939,7 @@
 
                     <!-- Category Pills -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
-                        <RadioButton Content="Tất cả (All)" IsChecked="True" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0">
-                            <RadioButton.Template>
-                                <ControlTemplate TargetType="RadioButton">
-                                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                        <TextBlock Text="Tất cả" FontSize="11" FontWeight="SemiBold" Foreground="{TemplateBinding Foreground}"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </RadioButton.Template>
-                        </RadioButton>
+                        <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Click="FilterCategory_Click" Tag="All" Content="Tất cả" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
 
                         <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Click="FilterCategory_Click" Tag="Temperatures" Content="🌡️ Nhiệt độ" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
                         <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Click="FilterCategory_Click" Tag="Loads" Content="📊 Mức tải (%)" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
@@ -758,7 +1055,7 @@
                                 <StackPanel>
                                     <TextBlock Text="Hành vi khi khởi động cùng hệ thống:" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                                     <RadioButton IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" Content="Khởi động ngầm trong khay hệ thống (Start Minimized to Tray)" Margin="0,0,0,6"/>
-                                    <RadioButton IsChecked="{Binding Path=StartMinimizedToTray, Mode=TwoWay, Converter={StaticResource BoolToInvertBoolConverter}}" Content="Mở giao diện ứng dụng khi khởi động (Open Window on Start)"/>
+                                    <RadioButton IsChecked="{Binding OpenWindowOnStart, Mode=TwoWay}" Content="Mở giao diện ứng dụng khi khởi động (Open Window on Start)"/>
                                 </StackPanel>
                             </Border>
 

@@ -16,7 +16,15 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo [1/3] Configuring AppleSMC service to start automatically on Windows boot...
-:: Point to permanent Windows System32 driver path so it never depends on third-party folders
+:: Ensure permanent driver exists in System32
+if not exist "%SystemRoot%\System32\drivers\applesmc.sys" (
+    if exist "%~dp0..\publish\applesmc.sys" (
+        copy /y "%~dp0..\publish\applesmc.sys" "%SystemRoot%\System32\drivers\applesmc.sys" >nul 2>&1
+    ) else if exist "%~dp0..\src\MacFanControl.UI\applesmc.sys" (
+        copy /y "%~dp0..\src\MacFanControl.UI\applesmc.sys" "%SystemRoot%\System32\drivers\applesmc.sys" >nul 2>&1
+    )
+)
+
 if exist "%SystemRoot%\System32\drivers\applesmc.sys" (
     sc config applesmc binPath= "%SystemRoot%\System32\drivers\applesmc.sys" start= auto
 ) else (

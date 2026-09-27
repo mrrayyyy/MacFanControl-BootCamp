@@ -147,12 +147,24 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 _settings.StartMinimizedToTray = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(OpenWindowOnStart));
                 if (_settings.StartWithWindows)
                 {
                     TaskSchedulerHelper.SetStartup(true, value);
                 }
                 SaveSettings();
             }
+        }
+    }
+
+    public bool OpenWindowOnStart
+    {
+        get => !_settings.StartMinimizedToTray;
+        set
+        {
+            StartMinimizedToTray = !value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(StartMinimizedToTray));
         }
     }
 
@@ -228,11 +240,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _settings.LeftFanCurve.MinTemp = Math.Clamp(value, 20f, _settings.LeftFanCurve.MaxTemp - 5f);
-            if (LinkBothFans)
-            {
-                _settings.RightFanCurve.MinTemp = _settings.LeftFanCurve.MinTemp;
-                OnPropertyChanged(nameof(RightMinTemp));
-            }
             OnPropertyChanged();
             SaveSettings();
         }
@@ -244,11 +251,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _settings.LeftFanCurve.MaxTemp = Math.Clamp(value, _settings.LeftFanCurve.MinTemp + 5f, 105f);
-            if (LinkBothFans)
-            {
-                _settings.RightFanCurve.MaxTemp = _settings.LeftFanCurve.MaxTemp;
-                OnPropertyChanged(nameof(RightMaxTemp));
-            }
             OnPropertyChanged();
             SaveSettings();
         }
@@ -260,11 +262,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _settings.LeftFanCurve.MinFanPercent = Math.Clamp(value, 0f, _settings.LeftFanCurve.MaxFanPercent);
-            if (LinkBothFans)
-            {
-                _settings.RightFanCurve.MinFanPercent = _settings.LeftFanCurve.MinFanPercent;
-                OnPropertyChanged(nameof(RightMinPercent));
-            }
             OnPropertyChanged();
             SaveSettings();
         }
@@ -276,11 +273,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _settings.LeftFanCurve.MaxFanPercent = Math.Clamp(value, _settings.LeftFanCurve.MinFanPercent, 100f);
-            if (LinkBothFans)
-            {
-                _settings.RightFanCurve.MaxFanPercent = _settings.LeftFanCurve.MaxFanPercent;
-                OnPropertyChanged(nameof(RightMaxPercent));
-            }
             OnPropertyChanged();
             SaveSettings();
         }
@@ -433,12 +425,31 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand RunDiagnosticCommand { get; }
     public ICommand CopyLogsCommand { get; }
 
+    // Numeric Stepper Commands (▲ / ▼)
+    public ICommand ChangeLeftMinTempCommand { get; }
+    public ICommand ChangeLeftMinPercentCommand { get; }
+    public ICommand ChangeLeftMaxTempCommand { get; }
+    public ICommand ChangeLeftMaxPercentCommand { get; }
+
+    public ICommand ChangeRightMinTempCommand { get; }
+    public ICommand ChangeRightMinPercentCommand { get; }
+    public ICommand ChangeRightMaxTempCommand { get; }
+    public ICommand ChangeRightMaxPercentCommand { get; }
+
     public MainViewModel(ISensorService sensorService, ISmcService smcService)
     {
         _sensorService = sensorService;
         _smcService = smcService;
 
         _settings = SettingsService.Instance.Load();
+
+        // Ensure Left Fan migrates to CPU Core Average on first run with this update
+        if (!_settings.MigratedToCoreAverage)
+        {
+            _settings.LeftFanCurve.SensorName = "CPU Core Average";
+            _settings.MigratedToCoreAverage = true;
+            SaveSettings();
+        }
 
         // Check if Task Scheduler is currently active
         _settings.StartWithWindows = TaskSchedulerHelper.IsStartupEnabled();
@@ -469,6 +480,49 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             {
                 SelectedTabIndex = idx;
             }
+        });
+
+        // Numeric Stepper Handlers (+1/-1 for °C, +5/-5 for %)
+        ChangeLeftMinTempCommand = new RelayCommand(p =>
+        {
+            if (float.TryParse(p?.ToString(), out float delta))
+                LeftMinTemp = (float)Math.Round(LeftMinTemp + delta);
+        });
+        ChangeLeftMinPercentCommand = new RelayCommand(p =>
+        {
+            if (float.TryParse(p?.ToString(), out float delta))
+                LeftMinPercent = (float)Math.Round(LeftMinPercent + delta);
+        });
+        ChangeLeftMaxTempCommand = new RelayCommand(p =>
+        {
+            if (float.TryParse(p?.ToString(), out float delta))
+                LeftMaxTemp = (float)Math.Round(LeftMaxTemp + delta);
+        });
+        ChangeLeftMaxPercentCommand = new RelayCommand(p =>
+        {
+            if (float.TryParse(p?.ToString(), out float delta))
+                LeftMaxPercent = (float)Math.Round(LeftMaxPercent + delta);
+        });
+
+        ChangeRightMinTempCommand = new RelayCommand(p =>
+        {
+            if (float.TryParse(p?.ToString(), out float delta))
+                RightMinTemp = (float)Math.Round(RightMinTemp + delta);
+        });
+        ChangeRightMinPercentCommand = new RelayCommand(p =>
+        {
+            if (float.TryParse(p?.ToString(), out float delta))
+                RightMinPercent = (float)Math.Round(RightMinPercent + delta);
+        });
+        ChangeRightMaxTempCommand = new RelayCommand(p =>
+        {
+            if (float.TryParse(p?.ToString(), out float delta))
+                RightMaxTemp = (float)Math.Round(RightMaxTemp + delta);
+        });
+        ChangeRightMaxPercentCommand = new RelayCommand(p =>
+        {
+            if (float.TryParse(p?.ToString(), out float delta))
+                RightMaxPercent = (float)Math.Round(RightMaxPercent + delta);
         });
 
         ApplyPresetCommand = new RelayCommand(p =>
@@ -687,22 +741,58 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (string.IsNullOrWhiteSpace(sensorName))
             return defaultTemp;
 
-        if (sensorName.Contains("CPU Max", StringComparison.OrdinalIgnoreCase))
-            return Overview.CpuMaxTemp;
+        // 1. CPU Core Average (Trung bình các nhân CPU)
+        if (sensorName.Contains("Average", StringComparison.OrdinalIgnoreCase) || 
+            sensorName.Contains("Trung bình", StringComparison.OrdinalIgnoreCase))
+        {
+            var coreSensors = AllSensors
+                .Where(s => s.Category == "CPU" && s.Unit == "°C" && s.Name.Contains("Core #", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (coreSensors.Count > 0)
+                return (float)Math.Round(coreSensors.Average(s => s.Value), 1);
+            return Overview.CpuPackageTemp;
+        }
 
+        // 2. CPU Core Max (Nhân nóng nhất)
+        if (sensorName.Contains("Max Core", StringComparison.OrdinalIgnoreCase) || 
+            sensorName.Contains("Lõi nóng nhất", StringComparison.OrdinalIgnoreCase) ||
+            sensorName.Contains("Nhân nóng nhất", StringComparison.OrdinalIgnoreCase))
+        {
+            var coreSensors = AllSensors
+                .Where(s => s.Category == "CPU" && s.Unit == "°C" && s.Name.Contains("Core #", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (coreSensors.Count > 0)
+                return coreSensors.Max(s => s.Value);
+            return Overview.CpuMaxTemp;
+        }
+
+        // 3. Individual Core (Core #1, Core #2, ... Core #8)
+        if (sensorName.Contains("Core #", StringComparison.OrdinalIgnoreCase))
+        {
+            var matchCore = AllSensors.FirstOrDefault(s => s.Category == "CPU" && s.Unit == "°C" && s.Name.Contains(sensorName, StringComparison.OrdinalIgnoreCase));
+            if (matchCore != null)
+                return matchCore.Value;
+        }
+
+        // 4. CPU Package
         if (sensorName.Contains("CPU Package", StringComparison.OrdinalIgnoreCase))
             return Overview.CpuPackageTemp;
 
-        if (sensorName.Contains("GPU Hotspot", StringComparison.OrdinalIgnoreCase))
+        // 5. GPU Hot Spot
+        if (sensorName.Contains("Hotspot", StringComparison.OrdinalIgnoreCase) || 
+            sensorName.Contains("Hot Spot", StringComparison.OrdinalIgnoreCase))
             return Overview.GpuHotspotTemp;
 
+        // 6. GPU Core
         if (sensorName.Contains("GPU", StringComparison.OrdinalIgnoreCase))
             return Overview.GpuTemp;
 
-        if (sensorName.Contains("Highest", StringComparison.OrdinalIgnoreCase))
+        // 7. Highest (CPU / GPU)
+        if (sensorName.Contains("Highest", StringComparison.OrdinalIgnoreCase) ||
+            sensorName.Contains("Cao nhất", StringComparison.OrdinalIgnoreCase))
             return Math.Max(Overview.CpuPackageTemp, Overview.GpuTemp);
 
-        // Check if matches an item in AllSensors
+        // Fallback: match by full name in AllSensors
         var match = AllSensors.FirstOrDefault(s => s.Name.Contains(sensorName, StringComparison.OrdinalIgnoreCase) && s.Unit == "°C");
         return match?.Value ?? defaultTemp;
     }
