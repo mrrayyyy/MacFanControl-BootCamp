@@ -1,0 +1,255 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Windows.Input;
+using System.Windows.Threading;
+using MacFanControl.Core.Interfaces;
+using MacFanControl.Core.Models;
+using MacFanControl.Core.Services;
+using MacFanControl.UI.Startup;
+using MacFanControl.UI.Tray;
+
+namespace MacFanControl.UI.ViewModels;
+
+public class MainViewModel : INotifyPropertyChanged, IDisposable
+{
+    private readonly ISensorService _sensorService;
+    private readonly ISmcService _smcService;
+    private readonly FanCurveCalculator _curveCalculator;
+    private readonly DispatcherTimer _timer;
+
+    private HardwareOverview _overview = new();
+    private FanInfo _fan0 = new() { Index = 0, Name = "Left Fan (CPU)" };
+    private FanInfo _fan1 = new() { Index = 1, Name = "Right Fan (GPU)" };
+
+    private FanMode _selectedMode = FanMode.Curve;
+    private FanProfile _activeProfile = FanProfile.CreateDefaultAggressive();
+    private float _manualTargetRpm = 3500;
+    private bool _linkBothFans = true;
+    private bool _startWithWindows;
+    private string _statusMessage = "Ready";
+
+    public TrayIconManager? TrayManager { get; set; }
+
+    public HardwareOverview Overview
+    {
+        get => _overview;
+        private set { _overview = value; OnPropertyChanged(); }
+    }
+
+    public FanInfo Fan0
+    {
+        get => _fan0;
+        private set { _fan0 = value; OnPropertyChanged(); }
+    }
+
+    public FanInfo Fan1
+    {
+        get => _fan1;
+        private set { _fan1 = value; OnPropertyChanged(); }
+    }
+
+    public FanMode SelectedMode
+    {
+        get => _selectedMode;
+        set
+        {
+            if (_selectedMode != value)
+            {
+                _selectedMode = value;
+                OnPropertyChanged();
+                ApplyFanMode();
+            }
+        }
+    }
+
+    public FanProfile ActiveProfile
+    {
+        get => _activeProfile;
+        set { _activeProfile = value; OnPropertyChanged(); }
+    }
+
+    public float ManualTargetRpm
+    {
+        get => _manualTargetRpm;
+        set
+        {
+            _manualTargetRpm = (float)Math.Round(value);
+            OnPropertyChanged();
+            if (SelectedMode == FanMode.Manual)
+            {
+                ApplyManualSpeed();
+            }
+        }
+    }
+
+    public bool LinkBothFans
+    {
+        get => _linkBothFans;
+        set { _linkBothFans = value; OnPropertyChanged(); }
+    }
+
+    public bool StartWithWindows
+    {
+        get => _startWithWindows;
+        set
+        {
+            if (_startWithWindows != value)
+            {
+                _startWithWindows = value;
+                OnPropertyChanged();
+                TaskSchedulerHelper.SetStartup(value);
+            }
+        }
+    }
+
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        set { _statusMessage = value; OnPropertyChanged(); }
+    }
+
+    public string DeviceModel => _smcService.DeviceModel;
+    public bool IsSMCConnected => _smcService.IsConnected;
+
+    // Commands
+    public ICommand SetAppleAutoCommand { get; }
+    public ICommand SetManualCommand { get; }
+    public ICommand SetCurveCommand { get; }
+    public ICommand SetTurboCommand { get; }
+    public ICommand SelectProfileCommand { get; }
+
+    public MainViewModel(ISensorService sensorService, ISmcService smcService)
+    {
+        _sensorService = sensorService;
+        _smcService = smcService;
+        _curveCalculator = new FanCurveCalculator();
+
+        _startWithWindows = TaskSchedulerHelper.IsStartupEnabled();
+
+        SetAppleAutoCommand = new RelayCommand(() => SelectedMode = FanMode.AppleAuto);
+        SetManualCommand    = new RelayCommand(() => SelectedMode = FanMode.Manual);
+        SetCurveCommand     = new RelayCommand(() => SelectedMode = FanMode.Curve);
+        SetTurboCommand     = new RelayCommand(() => SelectedMode = FanMode.Turbo);
+
+        SelectProfileCommand = new RelayCommand(p =>
+        {
+            if (p is string profileName)
+            {
+                if (profileName.Contains("Aggressive", StringComparison.OrdinalIgnoreCase))
+                    ActiveProfile = FanProfile.CreateDefaultAggressive();
+                else
+                    ActiveProfile = FanProfile.CreateDefaultSilent();
+            }
+        });
+
+        _timer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(1500)
+        };
+        _timer.Tick += (s, e) => UpdateHardwareAndFans();
+    }
+
+    public async Task StartAsync()
+    {
+        await _sensorService.InitializeAsync();
+        UpdateHardwareAndFans();
+        _timer.Start();
+        StatusMessage = "Sensors and SMC active";
+    }
+
+    private void UpdateHardwareAndFans()
+    {
+        // 1. Read CPU/GPU metrics
+        Overview = _sensorService.ReadHardwareOverview();
+
+        // 2. Read actual fan speeds
+        Fan0 = _smcService.GetFanInfo(0);
+        Fan1 = _smcService.GetFanInfo(1);
+
+        // 3. Update dynamic tray icon
+        TrayManager?.UpdateTemperatureIcon(Overview.CpuPackageTemp);
+
+        // 4. If in Curve mode, evaluate target fan speed
+        if (SelectedMode == FanMode.Curve)
+        {
+            EvaluateCurveLogic();
+        }
+    }
+
+    private void EvaluateCurveLogic()
+    {
+        float targetTemp = ActiveProfile.TargetSensor switch
+        {
+            SensorTarget.CpuPackage => Overview.CpuPackageTemp,
+            SensorTarget.CpuMaxCore => Overview.CpuMaxTemp,
+            SensorTarget.GpuCore => Overview.GpuTemp,
+            SensorTarget.MaxCpuGpu => Math.Max(Overview.CpuPackageTemp, Overview.GpuTemp),
+            _ => Overview.CpuPackageTemp
+        };
+
+        float targetPercent = _curveCalculator.CalculateFanPercentage(targetTemp, ActiveProfile);
+        float targetRpm = FanCurveCalculator.PercentageToRpm(targetPercent, Fan0.MinRpm, Fan0.MaxRpm);
+
+        if (LinkBothFans)
+        {
+            _smcService.SetFanSpeed(0, targetRpm);
+            _smcService.SetFanSpeed(1, targetRpm);
+        }
+        else
+        {
+            // Left fan follows CPU, Right fan follows GPU
+            float cpuPercent = _curveCalculator.CalculateFanPercentage(Overview.CpuPackageTemp, ActiveProfile);
+            float gpuPercent = _curveCalculator.CalculateFanPercentage(Overview.GpuTemp, ActiveProfile);
+
+            _smcService.SetFanSpeed(0, FanCurveCalculator.PercentageToRpm(cpuPercent, Fan0.MinRpm, Fan0.MaxRpm));
+            _smcService.SetFanSpeed(1, FanCurveCalculator.PercentageToRpm(gpuPercent, Fan1.MinRpm, Fan1.MaxRpm));
+        }
+
+        StatusMessage = $"Curve Mode: {targetTemp:F1}°C -> {targetRpm:F0} RPM ({targetPercent:F0}%)";
+    }
+
+    private void ApplyFanMode()
+    {
+        switch (SelectedMode)
+        {
+            case FanMode.AppleAuto:
+                _smcService.RestoreAppleDefaults();
+                StatusMessage = "Apple Default Automatic Control restored";
+                break;
+
+            case FanMode.Turbo:
+                _smcService.SetAllFansMode(FanMode.Turbo);
+                StatusMessage = "Turbo Mode: 100% cooling power";
+                break;
+
+            case FanMode.Manual:
+                ApplyManualSpeed();
+                break;
+
+            case FanMode.Curve:
+                EvaluateCurveLogic();
+                break;
+        }
+    }
+
+    private void ApplyManualSpeed()
+    {
+        _smcService.SetAllFansMode(FanMode.Manual, ManualTargetRpm);
+        StatusMessage = $"Manual Mode set to {ManualTargetRpm:F0} RPM";
+    }
+
+    public void Dispose()
+    {
+        _timer.Stop();
+        _smcService.RestoreAppleDefaults();
+        _smcService.Dispose();
+        _sensorService.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
