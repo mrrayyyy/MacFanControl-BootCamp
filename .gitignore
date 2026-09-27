@@ -4,6 +4,8 @@ obj/
 out/
 build/
 publish/
+publish_new/
+publish_staging/
 *_wpftmp.csproj
 
 ## Visual Studio & Rider

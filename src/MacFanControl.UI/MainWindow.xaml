@@ -7,6 +7,7 @@
         xmlns:vm="clr-namespace:MacFanControl.UI.ViewModels"
         mc:Ignorable="d"
         Title="MacFanControl BootCamp (MBP 16&quot; 2019)"
+        Icon="Resources/app_icon.ico"
         Height="780" Width="1000"
         MinHeight="720" MinWidth="920"
         WindowStartupLocation="CenterScreen"
@@ -34,9 +35,7 @@
             <!-- App Title & Device Badge -->
             <StackPanel Grid.Column="0" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#1C2130" BorderBrush="{StaticResource AccentBlueBrush}" BorderThickness="1" CornerRadius="6" Padding="6,2" Margin="0,0,10,0">
-                        <TextBlock Text=" SMC" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}"/>
-                    </Border>
+                    <Image Source="Resources/app_icon.png" Width="28" Height="28" Margin="0,0,10,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock Text="MacFanControl BootCamp" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                     
                     <!-- Live SMC Connected Badge -->
