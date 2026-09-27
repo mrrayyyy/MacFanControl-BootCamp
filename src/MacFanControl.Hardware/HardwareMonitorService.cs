@@ -1,6 +1,7 @@
 using LibreHardwareMonitor.Hardware;
 using MacFanControl.Core.Interfaces;
 using MacFanControl.Core.Models;
+using MacFanControl.Core.Services;
 
 namespace MacFanControl.Hardware;
 
@@ -19,6 +20,7 @@ public class HardwareMonitorService : ISensorService
 
     public Task InitializeAsync()
     {
+        DiagnosticLogger.Instance.Info("HardwareMonitorService initializing LibreHardwareMonitor...");
         try
         {
             _computer = new Computer
@@ -31,12 +33,28 @@ public class HardwareMonitorService : ISensorService
 
             _computer.Open();
             _isInitialized = true;
+
+            DiagnosticLogger.Instance.Info("LibreHardwareMonitor Computer opened successfully.");
+
+            // Probe and log detected hardware
+            foreach (var hw in _computer.Hardware)
+            {
+                hw.Update();
+                DiagnosticLogger.Instance.Info($"Detected Hardware: [{hw.HardwareType}] {hw.Name} (Sensors: {hw.Sensors.Length})");
+                foreach (var sensor in hw.Sensors)
+                {
+                    if (sensor.SensorType == SensorType.Temperature)
+                    {
+                        DiagnosticLogger.Instance.Debug($"  -> Sensor [{sensor.SensorType}] {sensor.Name}: {sensor.Value}°C");
+                    }
+                }
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback to simulation mode if running without driver / admin rights or on non-Windows
             _useSimulation = true;
             _isInitialized = true;
+            DiagnosticLogger.Instance.Warn($"Could not initialize physical LibreHardwareMonitor drivers ({ex.Message}). Using Simulation Mode for development/testing.");
         }
 
         return Task.CompletedTask;
@@ -48,7 +66,6 @@ public class HardwareMonitorService : ISensorService
 
         if (_useSimulation || _computer == null)
         {
-            // Simulate natural slight fluctuation
             _simCpuTemp += (float)(_random.NextDouble() * 2.0 - 1.0);
             _simCpuTemp = Math.Clamp(_simCpuTemp, 45f, 95f);
 

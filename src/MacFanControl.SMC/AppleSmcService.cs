@@ -1,8 +1,9 @@
+using System.Runtime.InteropServices;
 using MacFanControl.Core.Interfaces;
 using MacFanControl.Core.Models;
+using MacFanControl.Core.Services;
 using MacFanControl.SMC.Native;
 using Microsoft.Win32.SafeHandles;
-using System.Runtime.InteropServices;
 
 namespace MacFanControl.SMC;
 
@@ -10,7 +11,7 @@ public class AppleSmcService : ISmcService
 {
     private SafeFileHandle? _deviceHandle;
     private bool _isDisposed;
-    private readonly bool _useSimulation;
+    private bool _useSimulation;
 
     // Simulated states for testing/development
     private readonly FanInfo[] _simulatedFans = new FanInfo[]
@@ -25,10 +26,16 @@ public class AppleSmcService : ISmcService
 
     public AppleSmcService()
     {
-        // Try opening physical device; if not available, enable simulation mode
+        DiagnosticLogger.Instance.Info("AppleSmcService initializing...");
         if (!Open())
         {
+            DiagnosticLogger.Instance.Warn("Could not open physical Apple SMC device handle. Falling back to Simulation Mode for development/testing.");
             _useSimulation = true;
+        }
+        else
+        {
+            DiagnosticLogger.Instance.Info("Physical Apple SMC device connected successfully!");
+            ProbeSmcCapabilities();
         }
     }
 
@@ -37,10 +44,11 @@ public class AppleSmcService : ISmcService
         if (_deviceHandle != null && !_deviceHandle.IsInvalid)
             return true;
 
-        string[] candidatePaths = { @"\\.\AppleSMC", @"\\.\SMC", @"\\.\AppleSMC0" };
+        string[] candidatePaths = { @"\\.\AppleSMC", @"\\.\SMC", @"\\.\AppleSMC0", @"\\.\AppleSMC1" };
 
         foreach (var path in candidatePaths)
         {
+            DiagnosticLogger.Instance.Debug($"Attempting to open SMC device: {path}");
             try
             {
                 var handle = SmcNative.CreateFile(
@@ -52,19 +60,97 @@ public class AppleSmcService : ISmcService
                     SmcNative.FILE_ATTRIBUTE_NORMAL,
                     IntPtr.Zero);
 
+                int lastError = Marshal.GetLastWin32Error();
+
                 if (handle != null && !handle.IsInvalid)
                 {
                     _deviceHandle = handle;
+                    _useSimulation = false;
+                    DiagnosticLogger.Instance.Info($"Successfully opened handle to {path} (Win32 Error: {lastError})");
                     return true;
                 }
+                else
+                {
+                    DiagnosticLogger.Instance.Debug($"Failed to open {path}. Win32 Error: {lastError} ({(lastError == 5 ? "Access Denied - Run as Admin!" : lastError == 2 ? "Device Not Found" : "Other")})");
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Try next candidate
+                DiagnosticLogger.Instance.Error($"Exception while opening {path}: {ex.Message}");
             }
         }
 
         return false;
+    }
+
+    private void ProbeSmcCapabilities()
+    {
+        if (ReadSMC(SmcConstants.KEY_FAN_COUNT, out var fanCountData))
+        {
+            byte fans = fanCountData.Length > 0 ? fanCountData[0] : (byte)0;
+            DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'FNum' returned {fans} fans.");
+        }
+        else
+        {
+            DiagnosticLogger.Instance.Warn("SMC Probe: Key 'FNum' read failed or returned empty.");
+        }
+
+        if (ReadSMC(SmcConstants.KEY_FAN0_ACTUAL, out var f0Data))
+        {
+            float rpm = SmcDataConverter.Fpe2ToFloat(f0Data);
+            DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'F0Ac' (Left Fan) returned {rpm:F0} RPM.");
+        }
+
+        if (ReadSMC(SmcConstants.KEY_FAN1_ACTUAL, out var f1Data))
+        {
+            float rpm = SmcDataConverter.Fpe2ToFloat(f1Data);
+            DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'F1Ac' (Right Fan) returned {rpm:F0} RPM.");
+        }
+
+        if (ReadSMC(SmcConstants.KEY_FAN_MANUAL, out var fsData))
+        {
+            ushort mask = SmcDataConverter.ToUInt16(fsData);
+            DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'FS! ' (Manual Status Mask) returned 0x{mask:X4}.");
+        }
+    }
+
+    public void RunFullDiagnostic()
+    {
+        DiagnosticLogger.Instance.Info("=== STARTING FULL APPLE SMC DIAGNOSTIC PROBE ===");
+        DiagnosticLogger.Instance.Info($"Connection Mode: {(_useSimulation ? "SIMULATION (Driver Not Loaded)" : "PHYSICAL KERNEL DRIVER")}");
+
+        uint[] probeKeys = new uint[]
+        {
+            SmcConstants.ToFourCc("#KEY"),
+            SmcConstants.KEY_FAN_COUNT,
+            SmcConstants.KEY_FAN_MANUAL,
+            SmcConstants.KEY_FAN0_ACTUAL,
+            SmcConstants.KEY_FAN0_MIN,
+            SmcConstants.KEY_FAN0_MAX,
+            SmcConstants.KEY_FAN0_TARGET,
+            SmcConstants.KEY_FAN1_ACTUAL,
+            SmcConstants.KEY_FAN1_MIN,
+            SmcConstants.KEY_FAN1_MAX,
+            SmcConstants.KEY_FAN1_TARGET,
+            SmcConstants.KEY_CPU_TEMP_PROX,
+            SmcConstants.KEY_GPU_TEMP_PROX
+        };
+
+        foreach (var key in probeKeys)
+        {
+            string keyStr = SmcConstants.FromFourCc(key);
+            if (ReadSMC(key, out var data))
+            {
+                string hex = BitConverter.ToString(data).Replace("-", " ");
+                DiagnosticLogger.Instance.Smc($"[KEY: {keyStr}] SUCCESS -> Raw: {hex}");
+            }
+            else
+            {
+                DiagnosticLogger.Instance.Warn($"[KEY: {keyStr}] FAILED -> DeviceIoControl returned false or result != 0");
+            }
+        }
+
+        DiagnosticLogger.Instance.Info("=== FULL APPLE SMC DIAGNOSTIC PROBE COMPLETED ===");
     }
 
     public void Close()
@@ -81,11 +167,9 @@ public class AppleSmcService : ISmcService
 
         if (_useSimulation || _deviceHandle == null || _deviceHandle.IsInvalid)
         {
-            // Simulate natural slight RPM fluctuation
             var sim = _simulatedFans[fanIndex];
             if (sim.Mode != FanMode.AppleAuto)
             {
-                // Drift current RPM toward target RPM
                 sim.CurrentRpm += (sim.TargetRpm - sim.CurrentRpm) * 0.25f;
             }
             return sim;
@@ -114,7 +198,6 @@ public class AppleSmcService : ISmcService
         if (ReadSMC(keyTarget, out var dataTarget))
             fan.TargetRpm = SmcDataConverter.Fpe2ToFloat(dataTarget);
 
-        // Check if manual bit is set in FS!
         if (ReadSMC(SmcConstants.KEY_FAN_MANUAL, out var manualData))
         {
             ushort mask = SmcDataConverter.ToUInt16(manualData);
@@ -136,14 +219,22 @@ public class AppleSmcService : ISmcService
             return true;
         }
 
-        // 1. Enable manual mode for this fan in FS!
         if (!SetManualModeBit(fanIndex, true))
+        {
+            DiagnosticLogger.Instance.Error($"Failed to set manual mode bit for Fan {fanIndex}");
             return false;
+        }
 
-        // 2. Write target RPM
         uint keyTarget = fanIndex == 0 ? SmcConstants.KEY_FAN0_TARGET : SmcConstants.KEY_FAN1_TARGET;
         byte[] bytes = SmcDataConverter.FloatToFpe2(targetRpm);
-        return WriteSMC(keyTarget, bytes);
+        bool success = WriteSMC(keyTarget, bytes);
+
+        if (success)
+            DiagnosticLogger.Instance.Smc($"Set Fan {fanIndex} Target RPM -> {targetRpm:F0} (Key: {SmcConstants.FromFourCc(keyTarget)})");
+        else
+            DiagnosticLogger.Instance.Error($"Failed to write target RPM to Fan {fanIndex}");
+
+        return success;
     }
 
     public bool SetFanMode(int fanIndex, FanMode mode)
@@ -159,6 +250,8 @@ public class AppleSmcService : ISmcService
                 _simulatedFans[fanIndex].TargetRpm = _simulatedFans[fanIndex].MinRpm;
             return true;
         }
+
+        DiagnosticLogger.Instance.Info($"Switching Fan {fanIndex} to Mode: {mode}");
 
         if (mode == FanMode.AppleAuto)
         {
@@ -188,6 +281,7 @@ public class AppleSmcService : ISmcService
 
     public void RestoreAppleDefaults()
     {
+        DiagnosticLogger.Instance.Info("Restoring Apple Default SMC thermal management (Clearing manual bits)");
         if (_useSimulation)
         {
             foreach (var fan in _simulatedFans)
@@ -195,7 +289,6 @@ public class AppleSmcService : ISmcService
             return;
         }
 
-        // Clear manual bits: write 0 to FS!
         WriteSMC(SmcConstants.KEY_FAN_MANUAL, new byte[] { 0, 0 });
     }
 
@@ -232,8 +325,10 @@ public class AppleSmcService : ISmcService
             size,
             out var outCmd,
             size,
-            out _,
+            out int bytesReturned,
             IntPtr.Zero);
+
+        int win32Err = Marshal.GetLastWin32Error();
 
         if (result && outCmd.Result == 0)
         {
@@ -241,6 +336,7 @@ public class AppleSmcService : ISmcService
             return true;
         }
 
+        DiagnosticLogger.Instance.Debug($"ReadSMC [0x{key:X8} - {SmcConstants.FromFourCc(key)}] failed. Result: {result}, SmcResult: {outCmd.Result}, Win32Err: {win32Err}, BytesRet: {bytesReturned}");
         return false;
     }
 
@@ -267,10 +363,16 @@ public class AppleSmcService : ISmcService
             size,
             out var outCmd,
             size,
-            out _,
+            out int bytesReturned,
             IntPtr.Zero);
 
-        return result && outCmd.Result == 0;
+        int win32Err = Marshal.GetLastWin32Error();
+
+        if (result && outCmd.Result == 0)
+            return true;
+
+        DiagnosticLogger.Instance.Debug($"WriteSMC [0x{key:X8} - {SmcConstants.FromFourCc(key)}] failed. Result: {result}, SmcResult: {outCmd.Result}, Win32Err: {win32Err}, BytesRet: {bytesReturned}");
+        return false;
     }
 
     public void Dispose()

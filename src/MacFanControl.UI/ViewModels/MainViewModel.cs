@@ -1,5 +1,9 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using MacFanControl.Core.Interfaces;
@@ -27,8 +31,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private bool _linkBothFans = true;
     private bool _startWithWindows;
     private string _statusMessage = "Ready";
+    private int _selectedTabIndex = 0; // 0 = Dashboard, 1 = Log Center
+
+    public ObservableCollection<LogEntry> Logs { get; } = new();
 
     public TrayIconManager? TrayManager { get; set; }
+
+    public int SelectedTabIndex
+    {
+        get => _selectedTabIndex;
+        set { _selectedTabIndex = value; OnPropertyChanged(); }
+    }
 
     public HardwareOverview Overview
     {
@@ -117,6 +130,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand SetCurveCommand { get; }
     public ICommand SetTurboCommand { get; }
     public ICommand SelectProfileCommand { get; }
+    public ICommand ExportLogsCommand { get; }
+    public ICommand RunDiagnosticCommand { get; }
+    public ICommand CopyLogsCommand { get; }
+    public ICommand SwitchTabCommand { get; }
 
     public MainViewModel(ISensorService sensorService, ISmcService smcService)
     {
@@ -125,6 +142,22 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         _curveCalculator = new FanCurveCalculator();
 
         _startWithWindows = TaskSchedulerHelper.IsStartupEnabled();
+
+        // Populate initial logs
+        foreach (var log in DiagnosticLogger.Instance.GetRecentLogs())
+        {
+            Logs.Add(log);
+        }
+
+        DiagnosticLogger.Instance.OnLogAdded += entry =>
+        {
+            Application.Current?.Dispatcher?.BeginInvoke(() =>
+            {
+                Logs.Add(entry);
+                if (Logs.Count > 1000)
+                    Logs.RemoveAt(0);
+            });
+        };
 
         SetAppleAutoCommand = new RelayCommand(() => SelectedMode = FanMode.AppleAuto);
         SetManualCommand    = new RelayCommand(() => SelectedMode = FanMode.Manual);
@@ -139,6 +172,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                     ActiveProfile = FanProfile.CreateDefaultAggressive();
                 else
                     ActiveProfile = FanProfile.CreateDefaultSilent();
+            }
+        });
+
+        ExportLogsCommand = new RelayCommand(ExportLogs);
+        RunDiagnosticCommand = new RelayCommand(RunDiagnostic);
+        CopyLogsCommand = new RelayCommand(CopyLogsToClipboard);
+        SwitchTabCommand = new RelayCommand(param =>
+        {
+            if (param is string tabIndexStr && int.TryParse(tabIndexStr, out int idx))
+            {
+                SelectedTabIndex = idx;
             }
         });
 
@@ -159,17 +203,13 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void UpdateHardwareAndFans()
     {
-        // 1. Read CPU/GPU metrics
         Overview = _sensorService.ReadHardwareOverview();
 
-        // 2. Read actual fan speeds
         Fan0 = _smcService.GetFanInfo(0);
         Fan1 = _smcService.GetFanInfo(1);
 
-        // 3. Update dynamic tray icon
         TrayManager?.UpdateTemperatureIcon(Overview.CpuPackageTemp);
 
-        // 4. If in Curve mode, evaluate target fan speed
         if (SelectedMode == FanMode.Curve)
         {
             EvaluateCurveLogic();
@@ -197,7 +237,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         else
         {
-            // Left fan follows CPU, Right fan follows GPU
             float cpuPercent = _curveCalculator.CalculateFanPercentage(Overview.CpuPackageTemp, ActiveProfile);
             float gpuPercent = _curveCalculator.CalculateFanPercentage(Overview.GpuTemp, ActiveProfile);
 
@@ -205,7 +244,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             _smcService.SetFanSpeed(1, FanCurveCalculator.PercentageToRpm(gpuPercent, Fan1.MinRpm, Fan1.MaxRpm));
         }
 
-        StatusMessage = $"Curve Mode: {targetTemp:F1}°C -> {targetRpm:F0} RPM ({targetPercent:F0}%)";
+        StatusMessage = $"Curve: {targetTemp:F1}°C -> {targetRpm:F0} RPM ({targetPercent:F0}%)";
     }
 
     private void ApplyFanMode()
@@ -236,6 +275,43 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         _smcService.SetAllFansMode(FanMode.Manual, ManualTargetRpm);
         StatusMessage = $"Manual Mode set to {ManualTargetRpm:F0} RPM";
+    }
+
+    private void RunDiagnostic()
+    {
+        StatusMessage = "Running Full Hardware & SMC Diagnostic...";
+        _smcService.RunFullDiagnostic();
+        StatusMessage = "Diagnostic completed. View or Export log below.";
+    }
+
+    private void ExportLogs()
+    {
+        try
+        {
+            string exportedPath = DiagnosticLogger.Instance.ExportToFile();
+            StatusMessage = $"Exported to Desktop: {Path.GetFileName(exportedPath)}";
+
+            // Open Explorer with file selected
+            Process.Start("explorer.exe", $"/select,\"{exportedPath}\"");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Export failed: {ex.Message}";
+        }
+    }
+
+    private void CopyLogsToClipboard()
+    {
+        try
+        {
+            string allLogs = DiagnosticLogger.Instance.GetAllLogsAsText();
+            Clipboard.SetText(allLogs);
+            StatusMessage = "Diagnostic log copied to Clipboard!";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Clipboard copy failed: {ex.Message}";
+        }
     }
 
     public void Dispose()

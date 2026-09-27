@@ -24,4 +24,5 @@ public interface ISmcService : IDisposable
     bool SetFanMode(int fanIndex, FanMode mode);
     bool SetAllFansMode(FanMode mode, float targetRpm = 0);
     void RestoreAppleDefaults();
+    void RunFullDiagnostic();
 }
