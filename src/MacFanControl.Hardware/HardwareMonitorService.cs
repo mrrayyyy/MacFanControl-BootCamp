@@ -143,6 +143,12 @@ public class HardwareMonitorService : ISensorService
             // Graceful error recovery
         }
 
+        if (overview.CpuMaxTemp <= 0f && overview.CpuPackageTemp > 0f)
+            overview.CpuMaxTemp = overview.CpuPackageTemp;
+
+        if (overview.GpuHotspotTemp <= 0f && overview.GpuTemp > 0f)
+            overview.GpuHotspotTemp = overview.GpuTemp;
+
         return overview;
     }
 

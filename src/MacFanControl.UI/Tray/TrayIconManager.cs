@@ -32,21 +32,21 @@ public class TrayIconManager : IDisposable
         _onSetMode = onSetMode;
         _onExitApp = onExitApp;
 
-        // 1. CPU Tray Icon
+        // 1. CPU Tray Icon (Max Core)
         _cpuNotifyIcon = new NotifyIcon
         {
             Visible = true,
-            Text = "MacFanControl: CPU"
+            Text = "MacFanControl: CPU Max"
         };
         _cpuNotifyIcon.MouseClick += HandleIconClick;
         _cpuNotifyIcon.MouseDoubleClick += (s, e) => _onOpenWindow();
         _cpuNotifyIcon.ContextMenuStrip = CreateContextMenu();
 
-        // 2. GPU Tray Icon
+        // 2. GPU Tray Icon (Hotspot)
         _gpuNotifyIcon = new NotifyIcon
         {
             Visible = true,
-            Text = "MacFanControl: GPU"
+            Text = "MacFanControl: GPU Hotspot"
         };
         _gpuNotifyIcon.MouseClick += HandleIconClick;
         _gpuNotifyIcon.MouseDoubleClick += (s, e) => _onOpenWindow();
@@ -127,7 +127,7 @@ public class TrayIconManager : IDisposable
             _cpuNotifyIcon.Icon = cpuIcon;
             oldCpuIcon?.Dispose();
 
-            string cpuTip = $"CPU: {cpuInt}°C (MacFanControl)";
+            string cpuTip = $"CPU Max: {cpuInt}°C (MacFanControl)";
             if (cpuTip.Length >= 64) cpuTip = cpuTip.Substring(0, 63);
             _cpuNotifyIcon.Text = cpuTip;
 
@@ -143,7 +143,7 @@ public class TrayIconManager : IDisposable
             _gpuNotifyIcon.Icon = gpuIcon;
             oldGpuIcon?.Dispose();
 
-            string gpuTip = $"GPU: {gpuInt}°C (MacFanControl)";
+            string gpuTip = $"GPU Hotspot: {gpuInt}°C (MacFanControl)";
             if (gpuTip.Length >= 64) gpuTip = gpuTip.Substring(0, 63);
             _gpuNotifyIcon.Text = gpuTip;
 

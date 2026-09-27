@@ -634,8 +634,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         Fan0 = _smcService.GetFanInfo(0);
         Fan1 = _smcService.GetFanInfo(1);
 
-        // Update Tray Icon with BOTH CPU and GPU Temperatures
-        TrayManager?.UpdateTemperatureIcon(Overview.CpuPackageTemp, Overview.GpuTemp);
+        // Update Tray Icon with CPU Max Core and GPU Hotspot Temperatures
+        TrayManager?.UpdateTemperatureIcon(Overview.CpuMaxTemp, Overview.GpuHotspotTemp);
 
         // Handle Fan Controls
         if (SelectedMode == FanMode.Curve)

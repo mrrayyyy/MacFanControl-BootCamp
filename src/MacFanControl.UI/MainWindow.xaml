@@ -199,15 +199,15 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- CPU Card -->
+                <!-- CPU Card (Max Core) -->
                 <Border Grid.Column="0" Style="{StaticResource ModernCard}" Padding="12">
                     <StackPanel>
                         <Grid>
-                            <TextBlock Text="CPU PACKAGE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="CPU MAX CORE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
                             <TextBlock Text="Core i9" FontSize="10" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right" FontWeight="SemiBold"/>
                         </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
-                            <TextBlock Text="{Binding Overview.CpuPackageTemp, StringFormat='{}{0:F1}'}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding Overview.CpuMaxTemp, StringFormat='{}{0:F1}'}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                             <TextBlock Text=" °C" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
                         </StackPanel>
                         <Grid Margin="0,2,0,0">
@@ -217,15 +217,15 @@
                     </StackPanel>
                 </Border>
 
-                <!-- GPU Card -->
+                <!-- GPU Card (Hotspot) -->
                 <Border Grid.Column="2" Style="{StaticResource ModernCard}" Padding="12">
                     <StackPanel>
                         <Grid>
-                            <TextBlock Text="GPU CORE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="GPU HOTSPOT" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
                             <TextBlock Text="Radeon Pro" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" HorizontalAlignment="Right" FontWeight="SemiBold"/>
                         </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
-                            <TextBlock Text="{Binding Overview.GpuTemp, StringFormat='{}{0:F1}'}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding Overview.GpuHotspotTemp, StringFormat='{}{0:F1}'}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                             <TextBlock Text=" °C" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
                         </StackPanel>
                         <Grid Margin="0,2,0,0">
