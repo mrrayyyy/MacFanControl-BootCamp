@@ -48,6 +48,13 @@ public partial class App : Application
                 _mainWindow.WindowState = WindowState.Normal;
                 _mainWindow.Activate();
             },
+            onOpenSettings: () =>
+            {
+                _mainWindow.Show();
+                _mainWindow.WindowState = WindowState.Normal;
+                _mainWindow.Activate();
+                _viewModel.SelectedTabIndex = 2; // Settings tab
+            },
             onSetMode: mode => _viewModel.SelectedMode = mode,
             onExitApp: () => Shutdown());
 

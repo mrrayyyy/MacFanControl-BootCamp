@@ -21,24 +21,42 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ISensorService _sensorService;
     private readonly ISmcService _smcService;
-    private readonly FanCurveCalculator _curveCalculator;
     private readonly DispatcherTimer _timer;
 
+    private AppSettings _settings;
     private HardwareOverview _overview = new();
     private FanInfo _fan0 = new() { Index = 0, Name = "Left Fan (CPU)" };
     private FanInfo _fan1 = new() { Index = 1, Name = "Right Fan (GPU)" };
 
-    private FanMode _selectedMode = FanMode.Curve;
-    private FanProfile _activeProfile = FanProfile.CreateDefaultAggressive();
-    private float _manualTargetRpm = 3500;
-    private bool _linkBothFans = true;
-    private bool _startWithWindows;
+    private int _selectedTabIndex = 0; // 0=Fan Control, 1=Sensors, 2=Settings, 3=Logs
     private string _statusMessage = "Ready";
-    private int _selectedTabIndex = 0; // 0 = Dashboard, 1 = Log Center
+    private string _selectedSensorCategory = "All";
+    private string _sensorSearchText = string.Empty;
 
+    // Smoothed values to prevent jitter
+    private float _smoothedLeftTemp = 0;
+    private float _smoothedRightTemp = 0;
+    private float _currentCommandedRpm0 = 0;
+    private float _currentCommandedRpm1 = 0;
+    private float _lastWrittenRpm0 = -1;
+    private float _lastWrittenRpm1 = -1;
+
+    private float _calculatedLeftRpm;
+    private float _calculatedRightRpm;
+    private float _calculatedLeftPercent;
+    private float _calculatedRightPercent;
+
+    public ObservableCollection<SensorInfo> AllSensors { get; } = new();
+    public ObservableCollection<SensorInfo> DisplayedSensors { get; } = new();
     public ObservableCollection<LogEntry> Logs { get; } = new();
 
     public TrayIconManager? TrayManager { get; set; }
+
+    public AppSettings Settings
+    {
+        get => _settings;
+        private set { _settings = value; OnPropertyChanged(); }
+    }
 
     public int SelectedTabIndex
     {
@@ -66,56 +84,310 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public FanMode SelectedMode
     {
-        get => _selectedMode;
+        get => _settings.CurrentMode;
         set
         {
-            if (_selectedMode != value)
+            if (_settings.CurrentMode != value)
             {
-                _selectedMode = value;
+                _settings.CurrentMode = value;
                 OnPropertyChanged();
+                SaveSettings();
                 ApplyFanMode();
-            }
-        }
-    }
-
-    public FanProfile ActiveProfile
-    {
-        get => _activeProfile;
-        set { _activeProfile = value; OnPropertyChanged(); }
-    }
-
-    public float ManualTargetRpm
-    {
-        get => _manualTargetRpm;
-        set
-        {
-            _manualTargetRpm = (float)Math.Round(value);
-            OnPropertyChanged();
-            if (SelectedMode == FanMode.Manual)
-            {
-                ApplyManualSpeed();
             }
         }
     }
 
     public bool LinkBothFans
     {
-        get => _linkBothFans;
-        set { _linkBothFans = value; OnPropertyChanged(); }
+        get => _settings.LinkBothFans;
+        set
+        {
+            if (_settings.LinkBothFans != value)
+            {
+                _settings.LinkBothFans = value;
+                if (value)
+                {
+                    // Sync right curve to left curve when linked
+                    _settings.RightFanCurve.MinTemp = _settings.LeftFanCurve.MinTemp;
+                    _settings.RightFanCurve.MaxTemp = _settings.LeftFanCurve.MaxTemp;
+                    _settings.RightFanCurve.MinFanPercent = _settings.LeftFanCurve.MinFanPercent;
+                    _settings.RightFanCurve.MaxFanPercent = _settings.LeftFanCurve.MaxFanPercent;
+                    OnPropertyChanged(nameof(RightMinTemp));
+                    OnPropertyChanged(nameof(RightMaxTemp));
+                    OnPropertyChanged(nameof(RightMinPercent));
+                    OnPropertyChanged(nameof(RightMaxPercent));
+                }
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
     }
 
     public bool StartWithWindows
     {
-        get => _startWithWindows;
+        get => _settings.StartWithWindows;
         set
         {
-            if (_startWithWindows != value)
+            if (_settings.StartWithWindows != value)
             {
-                _startWithWindows = value;
+                _settings.StartWithWindows = value;
                 OnPropertyChanged();
-                TaskSchedulerHelper.SetStartup(value);
+                TaskSchedulerHelper.SetStartup(value, _settings.StartMinimizedToTray);
+                SaveSettings();
             }
         }
+    }
+
+    public bool StartMinimizedToTray
+    {
+        get => _settings.StartMinimizedToTray;
+        set
+        {
+            if (_settings.StartMinimizedToTray != value)
+            {
+                _settings.StartMinimizedToTray = value;
+                OnPropertyChanged();
+                if (_settings.StartWithWindows)
+                {
+                    TaskSchedulerHelper.SetStartup(true, value);
+                }
+                SaveSettings();
+            }
+        }
+    }
+
+    public bool MinimizeOnClose
+    {
+        get => _settings.MinimizeOnClose;
+        set
+        {
+            if (_settings.MinimizeOnClose != value)
+            {
+                _settings.MinimizeOnClose = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
+    }
+
+    public bool EnableSmoothing
+    {
+        get => _settings.EnableSmoothing;
+        set
+        {
+            if (_settings.EnableSmoothing != value)
+            {
+                _settings.EnableSmoothing = value;
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
+    }
+
+    public float RampUpStepRpm
+    {
+        get => _settings.RampUpStepRpm;
+        set
+        {
+            _settings.RampUpStepRpm = Math.Clamp(value, 50f, 600f);
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public float RampDownStepRpm
+    {
+        get => _settings.RampDownStepRpm;
+        set
+        {
+            _settings.RampDownStepRpm = Math.Clamp(value, 20f, 300f);
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public int PollingIntervalMs
+    {
+        get => _settings.PollingIntervalMs;
+        set
+        {
+            if (_settings.PollingIntervalMs != value && value >= 500)
+            {
+                _settings.PollingIntervalMs = value;
+                _timer.Interval = TimeSpan.FromMilliseconds(value);
+                OnPropertyChanged();
+                SaveSettings();
+            }
+        }
+    }
+
+    // --- Left Fan Curve Properties ---
+    public float LeftMinTemp
+    {
+        get => _settings.LeftFanCurve.MinTemp;
+        set
+        {
+            _settings.LeftFanCurve.MinTemp = Math.Clamp(value, 20f, _settings.LeftFanCurve.MaxTemp - 5f);
+            if (LinkBothFans)
+            {
+                _settings.RightFanCurve.MinTemp = _settings.LeftFanCurve.MinTemp;
+                OnPropertyChanged(nameof(RightMinTemp));
+            }
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public float LeftMaxTemp
+    {
+        get => _settings.LeftFanCurve.MaxTemp;
+        set
+        {
+            _settings.LeftFanCurve.MaxTemp = Math.Clamp(value, _settings.LeftFanCurve.MinTemp + 5f, 105f);
+            if (LinkBothFans)
+            {
+                _settings.RightFanCurve.MaxTemp = _settings.LeftFanCurve.MaxTemp;
+                OnPropertyChanged(nameof(RightMaxTemp));
+            }
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public float LeftMinPercent
+    {
+        get => _settings.LeftFanCurve.MinFanPercent;
+        set
+        {
+            _settings.LeftFanCurve.MinFanPercent = Math.Clamp(value, 0f, _settings.LeftFanCurve.MaxFanPercent);
+            if (LinkBothFans)
+            {
+                _settings.RightFanCurve.MinFanPercent = _settings.LeftFanCurve.MinFanPercent;
+                OnPropertyChanged(nameof(RightMinPercent));
+            }
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public float LeftMaxPercent
+    {
+        get => _settings.LeftFanCurve.MaxFanPercent;
+        set
+        {
+            _settings.LeftFanCurve.MaxFanPercent = Math.Clamp(value, _settings.LeftFanCurve.MinFanPercent, 100f);
+            if (LinkBothFans)
+            {
+                _settings.RightFanCurve.MaxFanPercent = _settings.LeftFanCurve.MaxFanPercent;
+                OnPropertyChanged(nameof(RightMaxPercent));
+            }
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public string LeftSensorName
+    {
+        get => _settings.LeftFanCurve.SensorName;
+        set
+        {
+            _settings.LeftFanCurve.SensorName = value;
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    // --- Right Fan Curve Properties ---
+    public float RightMinTemp
+    {
+        get => _settings.RightFanCurve.MinTemp;
+        set
+        {
+            _settings.RightFanCurve.MinTemp = Math.Clamp(value, 20f, _settings.RightFanCurve.MaxTemp - 5f);
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public float RightMaxTemp
+    {
+        get => _settings.RightFanCurve.MaxTemp;
+        set
+        {
+            _settings.RightFanCurve.MaxTemp = Math.Clamp(value, _settings.RightFanCurve.MinTemp + 5f, 105f);
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public float RightMinPercent
+    {
+        get => _settings.RightFanCurve.MinFanPercent;
+        set
+        {
+            _settings.RightFanCurve.MinFanPercent = Math.Clamp(value, 0f, _settings.RightFanCurve.MaxFanPercent);
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public float RightMaxPercent
+    {
+        get => _settings.RightFanCurve.MaxFanPercent;
+        set
+        {
+            _settings.RightFanCurve.MaxFanPercent = Math.Clamp(value, _settings.RightFanCurve.MinFanPercent, 100f);
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    public string RightSensorName
+    {
+        get => _settings.RightFanCurve.SensorName;
+        set
+        {
+            _settings.RightFanCurve.SensorName = value;
+            OnPropertyChanged();
+            SaveSettings();
+        }
+    }
+
+    // --- Status and Preview Bindings ---
+    public float CalculatedLeftRpm
+    {
+        get => _calculatedLeftRpm;
+        private set { _calculatedLeftRpm = value; OnPropertyChanged(); }
+    }
+
+    public float CalculatedRightRpm
+    {
+        get => _calculatedRightRpm;
+        private set { _calculatedRightRpm = value; OnPropertyChanged(); }
+    }
+
+    public float CalculatedLeftPercent
+    {
+        get => _calculatedLeftPercent;
+        private set { _calculatedLeftPercent = value; OnPropertyChanged(); }
+    }
+
+    public float CalculatedRightPercent
+    {
+        get => _calculatedRightPercent;
+        private set { _calculatedRightPercent = value; OnPropertyChanged(); }
+    }
+
+    public float SmoothedLeftTemp
+    {
+        get => _smoothedLeftTemp;
+        private set { _smoothedLeftTemp = value; OnPropertyChanged(); }
+    }
+
+    public float SmoothedRightTemp
+    {
+        get => _smoothedRightTemp;
+        private set { _smoothedRightTemp = value; OnPropertyChanged(); }
     }
 
     public string StatusMessage
@@ -124,29 +396,54 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set { _statusMessage = value; OnPropertyChanged(); }
     }
 
+    public string SelectedSensorCategory
+    {
+        get => _selectedSensorCategory;
+        set
+        {
+            _selectedSensorCategory = value;
+            OnPropertyChanged();
+            FilterSensors();
+        }
+    }
+
+    public string SensorSearchText
+    {
+        get => _sensorSearchText;
+        set
+        {
+            _sensorSearchText = value;
+            OnPropertyChanged();
+            FilterSensors();
+        }
+    }
+
     public string DeviceModel => _smcService.DeviceModel;
     public bool IsSMCConnected => _smcService.IsConnected;
 
     // Commands
     public ICommand SetAppleAutoCommand { get; }
-    public ICommand SetManualCommand { get; }
     public ICommand SetCurveCommand { get; }
     public ICommand SetTurboCommand { get; }
-    public ICommand SelectProfileCommand { get; }
+    public ICommand SwitchTabCommand { get; }
+    public ICommand ApplyPresetCommand { get; }
+    public ICommand SaveSettingsCommand { get; }
+    public ICommand ResetSettingsCommand { get; }
     public ICommand ExportLogsCommand { get; }
     public ICommand RunDiagnosticCommand { get; }
     public ICommand CopyLogsCommand { get; }
-    public ICommand SwitchTabCommand { get; }
 
     public MainViewModel(ISensorService sensorService, ISmcService smcService)
     {
         _sensorService = sensorService;
         _smcService = smcService;
-        _curveCalculator = new FanCurveCalculator();
 
-        _startWithWindows = TaskSchedulerHelper.IsStartupEnabled();
+        _settings = SettingsService.Instance.Load();
 
-        // Populate initial logs
+        // Check if Task Scheduler is currently active
+        _settings.StartWithWindows = TaskSchedulerHelper.IsStartupEnabled();
+
+        // Populate initial diagnostic logs
         foreach (var log in DiagnosticLogger.Instance.GetRecentLogs())
         {
             Logs.Add(log);
@@ -163,35 +460,39 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         };
 
         SetAppleAutoCommand = new RelayCommand(() => SelectedMode = FanMode.AppleAuto);
-        SetManualCommand    = new RelayCommand(() => SelectedMode = FanMode.Manual);
-        SetCurveCommand     = new RelayCommand(() => SelectedMode = FanMode.Curve);
-        SetTurboCommand     = new RelayCommand(() => SelectedMode = FanMode.Turbo);
+        SetCurveCommand = new RelayCommand(() => SelectedMode = FanMode.Curve);
+        SetTurboCommand = new RelayCommand(() => SelectedMode = FanMode.Turbo);
 
-        SelectProfileCommand = new RelayCommand(p =>
+        SwitchTabCommand = new RelayCommand(p =>
         {
-            if (p is string profileName)
-            {
-                if (profileName.Contains("Aggressive", StringComparison.OrdinalIgnoreCase))
-                    ActiveProfile = FanProfile.CreateDefaultAggressive();
-                else
-                    ActiveProfile = FanProfile.CreateDefaultSilent();
-            }
-        });
-
-        ExportLogsCommand = new RelayCommand(ExportLogs);
-        RunDiagnosticCommand = new RelayCommand(RunDiagnostic);
-        CopyLogsCommand = new RelayCommand(CopyLogsToClipboard);
-        SwitchTabCommand = new RelayCommand(param =>
-        {
-            if (param is string tabIndexStr && int.TryParse(tabIndexStr, out int idx))
+            if (p is string s && int.TryParse(s, out int idx))
             {
                 SelectedTabIndex = idx;
             }
         });
 
+        ApplyPresetCommand = new RelayCommand(p =>
+        {
+            if (p is string preset)
+            {
+                ApplyPreset(preset);
+            }
+        });
+
+        SaveSettingsCommand = new RelayCommand(() =>
+        {
+            SaveSettings();
+            StatusMessage = "Settings successfully saved!";
+        });
+
+        ResetSettingsCommand = new RelayCommand(ResetToDefaults);
+        ExportLogsCommand = new RelayCommand(ExportLogs);
+        RunDiagnosticCommand = new RelayCommand(RunDiagnostic);
+        CopyLogsCommand = new RelayCommand(CopyLogsToClipboard);
+
         _timer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(1500)
+            Interval = TimeSpan.FromMilliseconds(Math.Max(500, _settings.PollingIntervalMs))
         };
         _timer.Tick += (s, e) => UpdateHardwareAndFans();
     }
@@ -204,50 +505,206 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         StatusMessage = "Sensors and SMC active";
     }
 
+    private void SaveSettings()
+    {
+        SettingsService.Instance.Save(_settings);
+    }
+
+    private void ApplyPreset(string presetName)
+    {
+        switch (presetName.ToLowerInvariant())
+        {
+            case "quiet":
+                LeftMinTemp = 55f;
+                LeftMaxTemp = 88f;
+                LeftMinPercent = 20f;
+                LeftMaxPercent = 85f;
+                RightMinTemp = 55f;
+                RightMaxTemp = 85f;
+                RightMinPercent = 20f;
+                RightMaxPercent = 85f;
+                StatusMessage = "Applied Quiet (Office) Preset";
+                break;
+
+            case "balanced":
+                LeftMinTemp = 50f;
+                LeftMaxTemp = 82f;
+                LeftMinPercent = 25f;
+                LeftMaxPercent = 95f;
+                RightMinTemp = 50f;
+                RightMaxTemp = 80f;
+                RightMinPercent = 25f;
+                RightMaxPercent = 95f;
+                StatusMessage = "Applied Balanced Preset";
+                break;
+
+            case "gaming":
+                LeftMinTemp = 45f;
+                LeftMaxTemp = 75f;
+                LeftMinPercent = 35f;
+                LeftMaxPercent = 100f;
+                RightMinTemp = 45f;
+                RightMaxTemp = 72f;
+                RightMinPercent = 35f;
+                RightMaxPercent = 100f;
+                StatusMessage = "Applied Gaming & Rendering Preset";
+                break;
+        }
+
+        SaveSettings();
+    }
+
+    private void ResetToDefaults()
+    {
+        _settings = new AppSettings();
+        OnPropertyChanged(string.Empty);
+        TaskSchedulerHelper.SetStartup(_settings.StartWithWindows, _settings.StartMinimizedToTray);
+        SaveSettings();
+        StatusMessage = "Settings restored to factory defaults";
+    }
+
     private void UpdateHardwareAndFans()
     {
         Overview = _sensorService.ReadHardwareOverview();
 
+        // Refresh all hardware sensors list
+        var sensors = _sensorService.GetAllSensors();
+        AllSensors.Clear();
+        foreach (var s in sensors)
+        {
+            AllSensors.Add(s);
+        }
+        FilterSensors();
+
+        // Query SMC Fan speeds
         Fan0 = _smcService.GetFanInfo(0);
         Fan1 = _smcService.GetFanInfo(1);
 
-        TrayManager?.UpdateTemperatureIcon(Overview.CpuPackageTemp);
+        // Update Tray Icon with BOTH CPU and GPU Temperatures
+        TrayManager?.UpdateTemperatureIcon(Overview.CpuPackageTemp, Overview.GpuTemp);
 
+        // Handle Fan Controls
         if (SelectedMode == FanMode.Curve)
         {
             EvaluateCurveLogic();
         }
     }
 
+    private void FilterSensors()
+    {
+        DisplayedSensors.Clear();
+        foreach (var s in AllSensors)
+        {
+            bool matchCategory = SelectedSensorCategory == "All" ||
+                                 s.Category.Equals(SelectedSensorCategory, StringComparison.OrdinalIgnoreCase) ||
+                                 (SelectedSensorCategory == "Temperatures" && s.Unit == "°C") ||
+                                 (SelectedSensorCategory == "Loads" && s.Unit == "%") ||
+                                 (SelectedSensorCategory == "Power" && s.Unit == "W");
+
+            bool matchSearch = string.IsNullOrWhiteSpace(SensorSearchText) ||
+                               s.Name.Contains(SensorSearchText, StringComparison.OrdinalIgnoreCase);
+
+            if (matchCategory && matchSearch)
+            {
+                DisplayedSensors.Add(s);
+            }
+        }
+    }
+
     private void EvaluateCurveLogic()
     {
-        float targetTemp = ActiveProfile.TargetSensor switch
-        {
-            SensorTarget.CpuPackage => Overview.CpuPackageTemp,
-            SensorTarget.CpuMaxCore => Overview.CpuMaxTemp,
-            SensorTarget.GpuCore => Overview.GpuTemp,
-            SensorTarget.MaxCpuGpu => Math.Max(Overview.CpuPackageTemp, Overview.GpuTemp),
-            _ => Overview.CpuPackageTemp
-        };
-
-        float targetPercent = _curveCalculator.CalculateFanPercentage(targetTemp, ActiveProfile);
-        float targetRpm = FanCurveCalculator.PercentageToRpm(targetPercent, Fan0.MinRpm, Fan0.MaxRpm);
+        // 1. Determine raw temperatures
+        float rawLeftTemp = GetSensorTemperature(_settings.LeftFanCurve.SensorName, Overview.CpuPackageTemp);
+        float rawRightTemp = GetSensorTemperature(_settings.RightFanCurve.SensorName, Overview.GpuTemp);
 
         if (LinkBothFans)
         {
-            _smcService.SetFanSpeed(0, targetRpm);
-            _smcService.SetFanSpeed(1, targetRpm);
+            // When linked, both use the maximum temperature of CPU & GPU
+            float highestTemp = Math.Max(rawLeftTemp, rawRightTemp);
+            rawLeftTemp = highestTemp;
+            rawRightTemp = highestTemp;
+        }
+
+        // 2. Apply Anti-Jitter EMA Temperature Filter
+        if (EnableSmoothing)
+        {
+            SmoothedLeftTemp = FanCurveCalculator.FilterTemperature(rawLeftTemp, SmoothedLeftTemp);
+            SmoothedRightTemp = FanCurveCalculator.FilterTemperature(rawRightTemp, SmoothedRightTemp);
         }
         else
         {
-            float cpuPercent = _curveCalculator.CalculateFanPercentage(Overview.CpuPackageTemp, ActiveProfile);
-            float gpuPercent = _curveCalculator.CalculateFanPercentage(Overview.GpuTemp, ActiveProfile);
-
-            _smcService.SetFanSpeed(0, FanCurveCalculator.PercentageToRpm(cpuPercent, Fan0.MinRpm, Fan0.MaxRpm));
-            _smcService.SetFanSpeed(1, FanCurveCalculator.PercentageToRpm(gpuPercent, Fan1.MinRpm, Fan1.MaxRpm));
+            SmoothedLeftTemp = rawLeftTemp;
+            SmoothedRightTemp = rawRightTemp;
         }
 
-        StatusMessage = $"Curve: {targetTemp:F1}°C -> {targetRpm:F0} RPM ({targetPercent:F0}%)";
+        // 3. Compute target percentages
+        CalculatedLeftPercent = FanCurveCalculator.CalculatePercentageFromCurve(SmoothedLeftTemp, _settings.LeftFanCurve);
+        CalculatedRightPercent = FanCurveCalculator.CalculatePercentageFromCurve(SmoothedRightTemp, _settings.RightFanCurve);
+
+        float desiredRpm0 = FanCurveCalculator.PercentageToRpm(CalculatedLeftPercent, Fan0.MinRpm, Fan0.MaxRpm);
+        float desiredRpm1 = FanCurveCalculator.PercentageToRpm(CalculatedRightPercent, Fan1.MinRpm, Fan1.MaxRpm);
+
+        if (LinkBothFans)
+        {
+            float maxRpm = Math.Max(desiredRpm0, desiredRpm1);
+            desiredRpm0 = maxRpm;
+            desiredRpm1 = maxRpm;
+        }
+
+        // 4. Apply RPM Slew-Rate Limiting to eliminate jerkiness
+        if (EnableSmoothing)
+        {
+            _currentCommandedRpm0 = FanCurveCalculator.SlewRateLimitRpm(desiredRpm0, _currentCommandedRpm0, RampUpStepRpm, RampDownStepRpm);
+            _currentCommandedRpm1 = FanCurveCalculator.SlewRateLimitRpm(desiredRpm1, _currentCommandedRpm1, RampUpStepRpm, RampDownStepRpm);
+        }
+        else
+        {
+            _currentCommandedRpm0 = desiredRpm0;
+            _currentCommandedRpm1 = desiredRpm1;
+        }
+
+        CalculatedLeftRpm = _currentCommandedRpm0;
+        CalculatedRightRpm = _currentCommandedRpm1;
+
+        // 5. Send to SMC only if delta exceeds deadband (30 RPM) to prevent needless IOCTL spam
+        if (Math.Abs(_currentCommandedRpm0 - _lastWrittenRpm0) >= 30)
+        {
+            _smcService.SetFanSpeed(0, _currentCommandedRpm0);
+            _lastWrittenRpm0 = _currentCommandedRpm0;
+        }
+
+        if (Math.Abs(_currentCommandedRpm1 - _lastWrittenRpm1) >= 30)
+        {
+            _smcService.SetFanSpeed(1, _currentCommandedRpm1);
+            _lastWrittenRpm1 = _currentCommandedRpm1;
+        }
+
+        StatusMessage = $"Curve Active: Left {CalculatedLeftRpm:F0} RPM ({CalculatedLeftPercent:F0}%) | Right {CalculatedRightRpm:F0} RPM ({CalculatedRightPercent:F0}%)";
+    }
+
+    private float GetSensorTemperature(string sensorName, float defaultTemp)
+    {
+        if (string.IsNullOrWhiteSpace(sensorName))
+            return defaultTemp;
+
+        if (sensorName.Contains("CPU Max", StringComparison.OrdinalIgnoreCase))
+            return Overview.CpuMaxTemp;
+
+        if (sensorName.Contains("CPU Package", StringComparison.OrdinalIgnoreCase))
+            return Overview.CpuPackageTemp;
+
+        if (sensorName.Contains("GPU Hotspot", StringComparison.OrdinalIgnoreCase))
+            return Overview.GpuHotspotTemp;
+
+        if (sensorName.Contains("GPU", StringComparison.OrdinalIgnoreCase))
+            return Overview.GpuTemp;
+
+        if (sensorName.Contains("Highest", StringComparison.OrdinalIgnoreCase))
+            return Math.Max(Overview.CpuPackageTemp, Overview.GpuTemp);
+
+        // Check if matches an item in AllSensors
+        var match = AllSensors.FirstOrDefault(s => s.Name.Contains(sensorName, StringComparison.OrdinalIgnoreCase) && s.Unit == "°C");
+        return match?.Value ?? defaultTemp;
     }
 
     private void ApplyFanMode()
@@ -256,7 +713,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             case FanMode.AppleAuto:
                 _smcService.RestoreAppleDefaults();
-                StatusMessage = "Apple Default Automatic Control restored";
+                StatusMessage = "Apple Default Automatic Control active";
                 break;
 
             case FanMode.Turbo:
@@ -264,20 +721,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 StatusMessage = "Turbo Mode: 100% cooling power";
                 break;
 
-            case FanMode.Manual:
-                ApplyManualSpeed();
-                break;
-
             case FanMode.Curve:
+                _lastWrittenRpm0 = -1;
+                _lastWrittenRpm1 = -1;
                 EvaluateCurveLogic();
                 break;
         }
-    }
-
-    private void ApplyManualSpeed()
-    {
-        _smcService.SetAllFansMode(FanMode.Manual, ManualTargetRpm);
-        StatusMessage = $"Manual Mode set to {ManualTargetRpm:F0} RPM";
     }
 
     private void RunDiagnostic()
@@ -293,8 +742,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             string exportedPath = DiagnosticLogger.Instance.ExportToFile();
             StatusMessage = $"Exported to Desktop: {Path.GetFileName(exportedPath)}";
-
-            // Open Explorer with file selected
             Process.Start("explorer.exe", $"/select,\"{exportedPath}\"");
         }
         catch (Exception ex)

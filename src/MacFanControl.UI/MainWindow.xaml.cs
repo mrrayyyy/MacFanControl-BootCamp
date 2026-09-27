@@ -20,9 +20,20 @@ public partial class MainWindow : Window
     {
         if (!_isExplicitExit)
         {
-            // Minimize to system tray instead of closing application
-            e.Cancel = true;
-            Hide();
+            if (_viewModel.Settings.MinimizeOnClose)
+            {
+                // Minimize to system tray instead of terminating application
+                e.Cancel = true;
+                Hide();
+            }
+        }
+    }
+
+    private void FilterCategory_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is string cat)
+        {
+            _viewModel.SelectedSensorCategory = cat;
         }
     }
 

@@ -3,80 +3,174 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MacFanControl.UI"
         xmlns:vm="clr-namespace:MacFanControl.UI.ViewModels"
         mc:Ignorable="d"
         Title="MacFanControl BootCamp (MBP 16&quot; 2019)"
-        Height="730" Width="880"
-        MinHeight="680" MinWidth="820"
+        Height="780" Width="1000"
+        MinHeight="720" MinWidth="920"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgDarkBrush}"
         Closing="Window_Closing">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:BoolToInvertBoolConverter x:Key="BoolToInvertBoolConverter"/>
     </Window.Resources>
 
-    <Grid Margin="24">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- Header & Nav Tabs -->
+            <RowDefinition Height="Auto"/> <!-- Header & Nav -->
             <RowDefinition Height="*"/>    <!-- Main Tab Content -->
             <RowDefinition Height="Auto"/> <!-- Footer -->
         </Grid.RowDefinitions>
 
-        <!-- 1. HEADER & NAVIGATION TABS -->
+        <!-- 1. HEADER & MODERN SEGMENTED NAVIGATION -->
         <Grid Grid.Row="0" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="MacFanControl BootCamp" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="MacBook Pro 16&quot; (2019) • Intel Core i9 • AMD Radeon Pro • Apple T2 SMC" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+            <!-- App Title & Device Badge -->
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#1C2130" BorderBrush="{StaticResource AccentBlueBrush}" BorderThickness="1" CornerRadius="6" Padding="6,2" Margin="0,0,10,0">
+                        <TextBlock Text=" SMC" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}"/>
+                    </Border>
+                    <TextBlock Text="MacFanControl BootCamp" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    
+                    <!-- Live SMC Connected Badge -->
+                    <Border Background="#122A1E" BorderBrush="{StaticResource AccentGreenBrush}" BorderThickness="1" CornerRadius="12" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="6" Height="6" Fill="{StaticResource AccentGreenBrush}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Apple T2 SMC Connected" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentGreenBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                <TextBlock Text="MacBook Pro 16&quot; (2019) • Intel Core i9-9880H • AMD Radeon Pro • Windows BootCamp" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
             </StackPanel>
 
-            <!-- Navigation Segmented Tabs -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Background="#1E1E24" CornerRadius="8" Padding="4">
-                    <StackPanel Orientation="Horizontal">
-                        <Button Command="{Binding SwitchTabCommand}" CommandParameter="0" Content="Dashboard" 
-                                Height="32" Padding="14,0" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding SelectedTabIndex}" Value="0">
-                                            <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
+            <!-- Segmented Navigation Tabs -->
+            <Border Grid.Column="1" Background="#181922" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="3" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <!-- Tab 0: Fan Control -->
+                    <Button Command="{Binding SwitchTabCommand}" CommandParameter="0" Height="34" Padding="14,0" BorderThickness="0" Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="🎛️" FontSize="13" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="Fan Control" FontWeight="SemiBold" FontSize="12" Foreground="{TemplateBinding Foreground}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="0">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
 
-                        <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Content="Log Center &amp; Diagnostics" 
-                                Height="32" Padding="14,0" FontWeight="SemiBold" BorderThickness="0" Margin="4,0,0,0" Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding SelectedTabIndex}" Value="1">
-                                            <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+                    <!-- Tab 1: Sensors -->
+                    <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Height="34" Padding="14,0" BorderThickness="0" Cursor="Hand" Margin="2,0,0,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="🌡️" FontSize="13" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="Sensors" FontWeight="SemiBold" FontSize="12" Foreground="{TemplateBinding Foreground}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="1">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Tab 2: Settings -->
+                    <Button Command="{Binding SwitchTabCommand}" CommandParameter="2" Height="34" Padding="14,0" BorderThickness="0" Cursor="Hand" Margin="2,0,0,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="⚙️" FontSize="13" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="Settings" FontWeight="SemiBold" FontSize="12" Foreground="{TemplateBinding Foreground}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="2">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Tab 3: Diagnostics -->
+                    <Button Command="{Binding SwitchTabCommand}" CommandParameter="3" Height="34" Padding="14,0" BorderThickness="0" Cursor="Hand" Margin="2,0,0,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="📋" FontSize="13" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="Logs" FontWeight="SemiBold" FontSize="12" Foreground="{TemplateBinding Foreground}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedTabIndex}" Value="3">
+                                        <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Border>
         </Grid>
 
-        <!-- 2. TAB CONTENT -->
-        <!-- TAB 0: DASHBOARD -->
+        <!-- 2. TAB CONTENT CONTAINER -->
+        <!-- TAB 0: FAN CONTROL (ĐIỀU KHIỂN QUẠT THEO NHIỆT ĐỘ) -->
         <Grid Grid.Row="1">
             <Grid.Style>
                 <Style TargetType="Grid">
@@ -89,192 +183,427 @@
                 </Style>
             </Grid.Style>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- Sensor Metrics -->
-                <RowDefinition Height="Auto"/> <!-- Fan Status Cards -->
-                <RowDefinition Height="*"/>    <!-- Controls & Curves -->
+                <RowDefinition Height="Auto"/> <!-- Overview Metrics -->
+                <RowDefinition Height="Auto"/> <!-- Mode Selector -->
+                <RowDefinition Height="*"/>    <!-- Curve Tuning Panels -->
             </Grid.RowDefinitions>
 
-            <!-- SENSOR METRICS (CPU vs GPU) -->
-            <Grid Grid.Row="0" Margin="0,0,0,16">
+            <!-- 4 LIVE METRIC TILES (CPU, GPU, LEFT FAN, RIGHT FAN) -->
+            <Grid Grid.Row="0" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- CPU CARD -->
-                <Border Grid.Column="0" Style="{StaticResource ModernCard}">
+                <!-- CPU Card -->
+                <Border Grid.Column="0" Style="{StaticResource ModernCard}" Padding="12">
                     <StackPanel>
                         <Grid>
-                            <TextBlock Text="CPU • Intel Core i9-9880H" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <TextBlock Text="Package" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right"/>
+                            <TextBlock Text="CPU PACKAGE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="Core i9" FontSize="10" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right" FontWeight="SemiBold"/>
                         </Grid>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,12" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Overview.CpuPackageTemp, StringFormat='{}{0:F1}'}" FontSize="42" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text=" °C" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,6"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                            <TextBlock Text="{Binding Overview.CpuPackageTemp, StringFormat='{}{0:F1}'}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text=" °C" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
                         </StackPanel>
-
-                        <Grid Margin="0,4,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Max Core" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding Overview.CpuMaxTemp, StringFormat='{}{0:F1}°C'}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="Power" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding Overview.CpuPowerWatts, StringFormat='{}{0:F0} W'}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="Load" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding Overview.CpuUsagePercent, StringFormat='{}{0:F0} %'}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </StackPanel>
+                        <Grid Margin="0,2,0,0">
+                            <TextBlock Text="{Binding Overview.CpuPowerWatts, StringFormat='Power: {0:F0}W'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Overview.CpuUsagePercent, StringFormat='Load: {0:F0}%'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- GPU CARD -->
-                <Border Grid.Column="2" Style="{StaticResource ModernCard}">
+                <!-- GPU Card -->
+                <Border Grid.Column="2" Style="{StaticResource ModernCard}" Padding="12">
                     <StackPanel>
                         <Grid>
-                            <TextBlock Text="GPU • AMD Radeon Pro" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <TextBlock Text="Core" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right"/>
+                            <TextBlock Text="GPU CORE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="Radeon Pro" FontSize="10" Foreground="{StaticResource AccentOrangeBrush}" HorizontalAlignment="Right" FontWeight="SemiBold"/>
                         </Grid>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,12" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Overview.GpuTemp, StringFormat='{}{0:F1}'}" FontSize="42" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text=" °C" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,6"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                            <TextBlock Text="{Binding Overview.GpuTemp, StringFormat='{}{0:F1}'}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text=" °C" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
                         </StackPanel>
+                        <Grid Margin="0,2,0,0">
+                            <TextBlock Text="{Binding Overview.GpuPowerWatts, StringFormat='Power: {0:F0}W'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Overview.GpuUsagePercent, StringFormat='Load: {0:F0}%'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
 
+                <!-- Left Fan (CPU) Card -->
+                <Border Grid.Column="4" Style="{StaticResource ModernCard}" Padding="12">
+                    <StackPanel>
+                        <Grid>
+                            <TextBlock Text="FAN 1 • LEFT (CPU)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Fan0.Percentage, StringFormat='{}{0:F0}%'}" FontSize="11" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right" FontWeight="Bold"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                            <TextBlock Text="{Binding Fan0.CurrentRpm, StringFormat='{}{0:F0}'}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text=" RPM" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                        </StackPanel>
+                        <ProgressBar Value="{Binding Fan0.Percentage, Mode=OneWay}" Height="5"/>
                         <Grid Margin="0,4,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Hotspot" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding Overview.GpuHotspotTemp, StringFormat='{}{0:F1}°C'}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="Power" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding Overview.GpuPowerWatts, StringFormat='{}{0:F0} W'}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="Load" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding Overview.GpuUsagePercent, StringFormat='{}{0:F0} %'}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </StackPanel>
+                            <TextBlock Text="{Binding Fan0.MinRpm, StringFormat='Min: {0:F0}'}" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding Fan0.MaxRpm, StringFormat='Max: {0:F0}'}" FontSize="10" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Right Fan (GPU) Card -->
+                <Border Grid.Column="6" Style="{StaticResource ModernCard}" Padding="12">
+                    <StackPanel>
+                        <Grid>
+                            <TextBlock Text="FAN 2 • RIGHT (GPU)" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Fan1.Percentage, StringFormat='{}{0:F0}%'}" FontSize="11" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right" FontWeight="Bold"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                            <TextBlock Text="{Binding Fan1.CurrentRpm, StringFormat='{}{0:F0}'}" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text=" RPM" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,3"/>
+                        </StackPanel>
+                        <ProgressBar Value="{Binding Fan1.Percentage, Mode=OneWay}" Height="5"/>
+                        <Grid Margin="0,4,0,0">
+                            <TextBlock Text="{Binding Fan1.MinRpm, StringFormat='Min: {0:F0}'}" FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding Fan1.MaxRpm, StringFormat='Max: {0:F0}'}" FontSize="10" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right"/>
                         </Grid>
                     </StackPanel>
                 </Border>
             </Grid>
 
-            <!-- FAN STATUS (Left vs Right) -->
-            <Grid Grid.Row="1" Margin="0,0,0,16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- MODE SELECTOR BAR -->
+            <Border Grid.Row="1" Background="#161720" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,0,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- LEFT FAN (CPU) -->
-                <Border Grid.Column="0" Style="{StaticResource ModernCard}">
-                    <StackPanel>
-                        <Grid>
-                            <TextBlock Text="Fan 1 • Left (CPU)" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <TextBlock Text="{Binding Fan0.Percentage, StringFormat='{}{0:F0}%'}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right"/>
-                        </Grid>
+                    <TextBlock Text="Control Mode:" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="6,0,14,0"/>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,6,0,8">
-                            <TextBlock Text="{Binding Fan0.CurrentRpm, StringFormat='{}{0:F0}'}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text=" RPM" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                    <UniformGrid Grid.Column="1" Columns="3">
+                        <!-- Apple Auto Mode -->
+                        <Button Command="{Binding SetAppleAutoCommand}" Height="34" Margin="0,0,6,0" Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                                    <Setter Property="Background" Value="#1E202B"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedMode}" Value="AppleAuto">
+                                            <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🍏 Apple Default (SMC Auto)" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Custom Temp Curve Mode -->
+                        <Button Command="{Binding SetCurveCommand}" Height="34" Margin="3,0,3,0" Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                                    <Setter Property="Background" Value="#1E202B"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedMode}" Value="Curve">
+                                            <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⚡ Custom Temp Control (Tự chỉnh)" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- 100% Turbo Mode -->
+                        <Button Command="{Binding SetTurboCommand}" Height="34" Margin="6,0,0,0" Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource ModernButton}">
+                                    <Setter Property="Background" Value="#1E202B"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedMode}" Value="Turbo">
+                                            <Setter Property="Background" Value="{StaticResource AccentRedBrush}"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🚀 100% Turbo Max" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Button>
+                    </UniformGrid>
+                </Grid>
+            </Border>
+
+            <!-- INDEPENDENT LEFT & RIGHT FAN CURVE CUSTOMIZATION -->
+            <Border Grid.Row="2" Style="{StaticResource ModernCard}" Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Header & Presets -->
+                        <RowDefinition Height="*"/>    <!-- Left & Right Cards -->
+                        <RowDefinition Height="Auto"/> <!-- Smoothing & Acoustic Info -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Top Bar: Title & Quick Presets & Link Fans Toggle -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Temperature-Based Fan Tuning (Tùy chỉnh quạt theo nhiệt độ)" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Tự nhập ngưỡng nhiệt độ (°C) và phần trăm sức mạnh quạt (%) tương ứng cho từng quạt." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
 
-                        <ProgressBar Value="{Binding Fan0.Percentage, Mode=OneWay}" Height="6" Background="#2C2C34" Foreground="{StaticResource AccentBlueBrush}" BorderThickness="0"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Presets -->
+                            <TextBlock Text="Presets:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Quiet" Content="Quiet (Office)" Style="{StaticResource ModernButton}" Height="28" Padding="8,0" Margin="0,0,6,0"/>
+                            <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Balanced" Content="Balanced" Style="{StaticResource ModernButton}" Height="28" Padding="8,0" Margin="0,0,6,0"/>
+                            <Button Command="{Binding ApplyPresetCommand}" CommandParameter="Gaming" Content="Gaming &amp; Render" Style="{StaticResource ModernButton}" Height="28" Padding="8,0" Margin="0,0,14,0"/>
 
-                        <Grid Margin="0,6,0,0">
-                            <TextBlock Text="{Binding Fan0.MinRpm, StringFormat='Min: {0:F0}'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <TextBlock Text="{Binding Fan0.MaxRpm, StringFormat='Max: {0:F0}'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- RIGHT FAN (GPU) -->
-                <Border Grid.Column="2" Style="{StaticResource ModernCard}">
-                    <StackPanel>
-                        <Grid>
-                            <TextBlock Text="Fan 2 • Right (GPU)" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <TextBlock Text="{Binding Fan1.Percentage, StringFormat='{}{0:F0}%'}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right"/>
-                        </Grid>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,6,0,8">
-                            <TextBlock Text="{Binding Fan1.CurrentRpm, StringFormat='{}{0:F0}'}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text=" RPM" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+                            <!-- Link Both Fans Checkbox -->
+                            <Border Background="#1C1E2A" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,4">
+                                <CheckBox IsChecked="{Binding LinkBothFans, Mode=TwoWay}" Content="Link both fans (Đồng bộ 2 quạt)" FontWeight="SemiBold"/>
+                            </Border>
                         </StackPanel>
+                    </Grid>
 
-                        <ProgressBar Value="{Binding Fan1.Percentage, Mode=OneWay}" Height="6" Background="#2C2C34" Foreground="{StaticResource AccentBlueBrush}" BorderThickness="0"/>
+                    <!-- Left Fan & Right Fan Side-by-Side Tuning Columns -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                        <Grid Margin="0,6,0,0">
-                            <TextBlock Text="{Binding Fan1.MinRpm, StringFormat='Min: {0:F0}'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <TextBlock Text="{Binding Fan1.MaxRpm, StringFormat='Max: {0:F0}'}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </Grid>
+                        <!-- LEFT FAN (CPU) CONFIGURATION -->
+                        <Border Grid.Column="0" Background="#161822" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/> <!-- Title & Sensor -->
+                                    <RowDefinition Height="Auto"/> <!-- Min Thresholds -->
+                                    <RowDefinition Height="Auto"/> <!-- Max Thresholds -->
+                                    <RowDefinition Height="*"/>    <!-- Live Preview -->
+                                </Grid.RowDefinitions>
 
-            <!-- CONTROLS & PREFERENCES -->
-            <Border Grid.Row="2" Style="{StaticResource ModernCard}" Margin="0,0,0,16">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <TextBlock Text="Fan Control Modes" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                                <!-- Header & Sensor Selector -->
+                                <Grid Grid.Row="0" Margin="0,0,0,14">
+                                    <StackPanel>
+                                        <TextBlock Text="🌀 Left Fan (Quạt Trái - Phía CPU)" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Điều khiển dựa trên cảm biến nhiệt độ:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,4"/>
+                                        <ComboBox SelectedValue="{Binding LeftSensorName, Mode=TwoWay}" SelectedValuePath="Content" Height="28" Background="{StaticResource InputBgBrush}" Foreground="{StaticResource TextPrimaryBrush}">
+                                            <ComboBoxItem Content="CPU Package"/>
+                                            <ComboBoxItem Content="CPU Max Core"/>
+                                            <ComboBoxItem Content="GPU Core"/>
+                                            <ComboBoxItem Content="Highest (CPU / GPU)"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
 
-                        <!-- Mode Selector Buttons -->
-                        <UniformGrid Columns="4" Margin="0,0,0,16">
-                            <Button Command="{Binding SetAppleAutoCommand}" Content="Apple Default" Height="36" Margin="0,0,6,0" Background="#2A2A32" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource CardBorderBrush}"/>
-                            <Button Command="{Binding SetCurveCommand}" Content="Custom Curve" Height="36" Margin="4,0,4,0" Background="{StaticResource AccentBlueBrush}" Foreground="White" BorderThickness="0" FontWeight="SemiBold"/>
-                            <Button Command="{Binding SetManualCommand}" Content="Fixed Manual" Height="36" Margin="4,0,4,0" Background="#2A2A32" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource CardBorderBrush}"/>
-                            <Button Command="{Binding SetTurboCommand}" Content="100% Turbo" Height="36" Margin="6,0,0,0" Background="{StaticResource AccentRedBrush}" Foreground="White" BorderThickness="0" FontWeight="Bold"/>
-                        </UniformGrid>
+                                <!-- Minimum Temperature & Power -->
+                                <Border Grid.Row="1" Background="#1B1D28" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
 
-                        <!-- Manual Slider -->
-                        <StackPanel Margin="0,0,0,14">
-                            <Grid Margin="0,0,0,4">
-                                <TextBlock Text="Manual Target Speed" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding ManualTargetRpm, StringFormat='{}{0:F0} RPM'}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right"/>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Nhiệt độ Bắt đầu (Min °C)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding LeftMinTemp, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
+                                                <TextBlock Text=" °C" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Dưới mức này chạy Min %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Sức mạnh quạt (Min %)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding LeftMinPercent, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
+                                                <TextBlock Text=" %" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Tốc độ quạt mức thấp nhất" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Maximum Temperature & Power -->
+                                <Border Grid.Row="2" Background="#1B1D28" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Nhiệt độ Tối đa (Max °C)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding LeftMaxTemp, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
+                                                <TextBlock Text=" °C" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Trên mức này chạy Max %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Sức mạnh quạt (Max %)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding LeftMaxPercent, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
+                                                <TextBlock Text=" %" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Tốc độ quạt mức tối đa" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Live Left Calculated Speed Preview -->
+                                <Border Grid.Row="3" Background="#111218" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10" VerticalAlignment="Bottom">
+                                    <StackPanel>
+                                        <Grid>
+                                            <TextBlock Text="Nhiệt độ hiện tại:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding SmoothedLeftTemp, StringFormat='{}{0:F1} °C'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBlock Text="Tốc độ mục tiêu tính toán:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding CalculatedLeftRpm, StringFormat='{}{0:F0} RPM'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <ProgressBar Value="{Binding CalculatedLeftPercent, Mode=OneWay}" Height="4" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
                             </Grid>
-                            <Slider Minimum="1800" Maximum="5616" Value="{Binding ManualTargetRpm, Mode=TwoWay}" SmallChange="100" LargeChange="500"/>
-                        </StackPanel>
+                        </Border>
 
-                        <!-- Profile Selection & Settings -->
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                        <!-- RIGHT FAN (GPU) CONFIGURATION -->
+                        <Border Grid.Column="2" Background="#161822" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/> <!-- Title & Sensor -->
+                                    <RowDefinition Height="Auto"/> <!-- Min Thresholds -->
+                                    <RowDefinition Height="Auto"/> <!-- Max Thresholds -->
+                                    <RowDefinition Height="*"/>    <!-- Live Preview -->
+                                </Grid.RowDefinitions>
 
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Profile Curve Preset" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Command="{Binding SelectProfileCommand}" CommandParameter="Aggressive" Content="Aggressive (Gaming)" Height="28" Padding="10,0" Margin="0,0,8,0" Background="#2A2A32" Foreground="{StaticResource TextPrimaryBrush}" BorderThickness="0"/>
-                                    <Button Command="{Binding SelectProfileCommand}" CommandParameter="Quiet" Content="Quiet (Office)" Height="28" Padding="10,0" Background="#2A2A32" Foreground="{StaticResource TextPrimaryBrush}" BorderThickness="0"/>
-                                </StackPanel>
+                                <!-- Header & Sensor Selector -->
+                                <Grid Grid.Row="0" Margin="0,0,0,14">
+                                    <StackPanel>
+                                        <TextBlock Text="🌀 Right Fan (Quạt Phải - Phía GPU)" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Điều khiển dựa trên cảm biến nhiệt độ:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,4"/>
+                                        <ComboBox SelectedValue="{Binding RightSensorName, Mode=TwoWay}" SelectedValuePath="Content" Height="28" Background="{StaticResource InputBgBrush}" Foreground="{StaticResource TextPrimaryBrush}">
+                                            <ComboBoxItem Content="GPU Core"/>
+                                            <ComboBoxItem Content="GPU Hotspot"/>
+                                            <ComboBoxItem Content="CPU Package"/>
+                                            <ComboBoxItem Content="Highest (CPU / GPU)"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Minimum Temperature & Power -->
+                                <Border Grid.Row="1" Background="#1B1D28" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Nhiệt độ Bắt đầu (Min °C)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding RightMinTemp, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
+                                                <TextBlock Text=" °C" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Dưới mức này chạy Min %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Sức mạnh quạt (Min %)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding RightMinPercent, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
+                                                <TextBlock Text=" %" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Tốc độ quạt mức thấp nhất" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Maximum Temperature & Power -->
+                                <Border Grid.Row="2" Background="#1B1D28" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Nhiệt độ Tối đa (Max °C)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding RightMaxTemp, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
+                                                <TextBlock Text=" °C" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Trên mức này chạy Max %" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Sức mạnh quạt (Max %)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding RightMaxPercent, UpdateSourceTrigger=PropertyChanged}" Width="70" Height="28" TextAlignment="Center" FontWeight="Bold" FontSize="13"/>
+                                                <TextBlock Text=" %" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Tốc độ quạt mức tối đa" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Live Right Calculated Speed Preview -->
+                                <Border Grid.Row="3" Background="#111218" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10" VerticalAlignment="Bottom">
+                                    <StackPanel>
+                                        <Grid>
+                                            <TextBlock Text="Nhiệt độ hiện tại:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding SmoothedRightTemp, StringFormat='{}{0:F1} °C'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBlock Text="Tốc độ mục tiêu tính toán:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding CalculatedRightRpm, StringFormat='{}{0:F0} RPM'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <ProgressBar Value="{Binding CalculatedRightPercent, Mode=OneWay}" Height="4" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- Anti-Jitter Status Indicator Bar -->
+                    <Border Grid.Row="2" Background="#13141D" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,12,0,0">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="🛡️" FontSize="12" Margin="0,0,6,0"/>
+                                <TextBlock Text="Anti-Jitter Smooth Engine:" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,6,0"/>
+                                <TextBlock Text="Bộ lọc EMA và giới hạn bước tốc (Slew-rate limit) đang hoạt động, giúp quạt tăng giảm êm ái, không bị hú rít giật cục." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                             </StackPanel>
-
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                <CheckBox IsChecked="{Binding LinkBothFans, Mode=TwoWay}" Content="Link both fans (Đồng tốc)" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,6"/>
-                                <CheckBox IsChecked="{Binding StartWithWindows, Mode=TwoWay}" Content="Start with Windows (Khởi động ngầm)" Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </StackPanel>
+                            <TextBlock Text="Tự động lưu cấu hình ✓" FontSize="11" Foreground="{StaticResource AccentBlueBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
-                    </StackPanel>
-                </ScrollViewer>
+                    </Border>
+                </Grid>
             </Border>
         </Grid>
 
-        <!-- TAB 1: LOG CENTER & DIAGNOSTICS -->
+        <!-- TAB 1: SENSORS (DANH SÁCH TOÀN BỘ CẢM BIẾN PHẦN CỨNG) -->
         <Grid Grid.Row="1">
             <Grid.Style>
                 <Style TargetType="Grid">
@@ -287,12 +616,248 @@
                 </Style>
             </Grid.Style>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Filters & Search -->
+                <RowDefinition Height="*"/>    <!-- Sensors List -->
+            </Grid.RowDefinitions>
+
+            <!-- Search & Category Filters -->
+            <Border Grid.Row="0" Style="{StaticResource ModernCard}" Padding="12" Margin="0,0,0,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="280"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Search Input -->
+                    <TextBox Grid.Column="0" Text="{Binding SensorSearchText, UpdateSourceTrigger=PropertyChanged}" Height="32" Padding="8,4" VerticalContentAlignment="Center"/>
+
+                    <!-- Category Pills -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
+                        <RadioButton Content="Tất cả (All)" IsChecked="True" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0">
+                            <RadioButton.Template>
+                                <ControlTemplate TargetType="RadioButton">
+                                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                        <TextBlock Text="Tất cả" FontSize="11" FontWeight="SemiBold" Foreground="{TemplateBinding Foreground}"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </RadioButton.Template>
+                        </RadioButton>
+
+                        <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Click="FilterCategory_Click" Tag="Temperatures" Content="🌡️ Nhiệt độ" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
+                        <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Click="FilterCategory_Click" Tag="Loads" Content="📊 Mức tải (%)" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
+                        <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Click="FilterCategory_Click" Tag="CPU" Content="CPU" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
+                        <Button Command="{Binding SwitchTabCommand}" CommandParameter="1" Click="FilterCategory_Click" Tag="GPU" Content="GPU" Style="{StaticResource ModernButton}" Height="30" Padding="10,0" Margin="0,0,6,0"/>
+                    </StackPanel>
+
+                    <!-- Sensor Count -->
+                    <TextBlock Grid.Column="2" Text="{Binding DisplayedSensors.Count, StringFormat='Hiển thị {0} cảm biến'}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <!-- Sensors Data Table View -->
+            <Border Grid.Row="1" Style="{StaticResource ModernCard}" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Table Header -->
+                    <Grid Grid.Row="0" Margin="10,4,10,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="90"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="PHÂN LOẠI" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="1" Text="TÊN CẢM BIẾN / THIẾT BỊ" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="2" Text="MỨC ĐỘ HIỆN TẠI" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="3" Text="GIÁ TRỊ" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="4" Text="MIN" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="5" Text="MAX" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                    </Grid>
+
+                    <Separator Grid.Row="0" Background="{StaticResource CardBorderBrush}" VerticalAlignment="Bottom" Margin="0,0,0,-4"/>
+
+                    <!-- Sensor Items List -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+                        <ItemsControl ItemsSource="{Binding DisplayedSensors}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#161822" BorderBrush="#202230" BorderThickness="0,0,0,1" Padding="10,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="2*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="90"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Category Badge -->
+                                            <Border Grid.Column="0" Background="#1D202E" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource AccentBlueBrush}"/>
+                                            </Border>
+
+                                            <!-- Sensor Name -->
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                                            <!-- Visual Level Bar -->
+                                            <ProgressBar Grid.Column="2" Value="{Binding ValueRatio, Mode=OneWay}" Maximum="1" Height="6" VerticalAlignment="Center" Margin="4,0,14,0"/>
+
+                                            <!-- Value -->
+                                            <TextBlock Grid.Column="3" Text="{Binding FormattedValue}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                            <!-- Min Peak -->
+                                            <TextBlock Grid.Column="4" Text="{Binding FormattedMin}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                            <!-- Max Peak -->
+                                            <TextBlock Grid.Column="5" Text="{Binding FormattedMax}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- TAB 2: SETTINGS (CÀI ĐẶT HỆ THỐNG & KHỞI ĐỘNG CÙNG WINDOWS) -->
+        <Grid Grid.Row="1">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedTabIndex}" Value="2">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Group 1: Windows Integration & Startup -->
+                    <Border Style="{StaticResource ModernCard}" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="🚀 Tích Hợp Hệ Thống &amp; Khởi Động Cùng Windows" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Cấu hình khởi động tự động không hỏi quyền UAC thông qua Windows Task Scheduler." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,12"/>
+
+                            <!-- Start With Windows Checkbox -->
+                            <CheckBox IsChecked="{Binding StartWithWindows, Mode=TwoWay}" Content="Khởi động cùng Windows khi người dùng đăng nhập (Start with Windows)" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+                            <!-- Startup Mode (Open with Window vs Start Minimized) -->
+                            <Border Background="#161822" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="24,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="Hành vi khi khởi động cùng hệ thống:" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                    <RadioButton IsChecked="{Binding StartMinimizedToTray, Mode=TwoWay}" Content="Khởi động ngầm trong khay hệ thống (Start Minimized to Tray)" Margin="0,0,0,6"/>
+                                    <RadioButton IsChecked="{Binding Path=StartMinimizedToTray, Mode=TwoWay, Converter={StaticResource BoolToInvertBoolConverter}}" Content="Mở giao diện ứng dụng khi khởi động (Open Window on Start)"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Minimize on Close Checkbox -->
+                            <CheckBox IsChecked="{Binding MinimizeOnClose, Mode=TwoWay}" Content="Thu nhỏ xuống khay hệ thống khi bấm nút đóng [X] (Minimize to Tray on Close)" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Group 2: Fan Smoothing & Anti-Jitter -->
+                    <Border Style="{StaticResource ModernCard}" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="🌊 Độ Mượt &amp; Bộ Lọc Chống Giật Điều Tốc Quạt" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Giúp quạt MacBook Pro tăng giảm tốc độ êm ái tự nhiên, tránh hiện tượng hú rít lúc to lúc nhỏ." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,12"/>
+
+                            <CheckBox IsChecked="{Binding EnableSmoothing, Mode=TwoWay}" Content="Bật bộ lọc làm mượt chống giật quạt (Enable Anti-Jitter Smoothing)" FontWeight="SemiBold" Margin="0,0,0,14"/>
+
+                            <!-- Ramp Up Speed Slider -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="220"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Tốc độ tăng quạt (Ramp Up Step):" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <Slider Grid.Column="1" Minimum="100" Maximum="500" Value="{Binding RampUpStepRpm, Mode=TwoWay}" SmallChange="25" LargeChange="50" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{Binding RampUpStepRpm, StringFormat='{}{0:F0} RPM'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Ramp Down Speed Slider -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="220"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Tốc độ giảm quạt (Ramp Down Step):" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <Slider Grid.Column="1" Minimum="30" Maximum="250" Value="{Binding RampDownStepRpm, Mode=TwoWay}" SmallChange="10" LargeChange="25" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{Binding RampDownStepRpm, StringFormat='{}{0:F0} RPM'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Polling Interval -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="220"/>
+                                    <ColumnDefinition Width="180"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Chu kỳ quét cảm biến (Polling Rate):" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" SelectedValue="{Binding PollingIntervalMs, Mode=TwoWay}" SelectedValuePath="Tag" Height="28">
+                                    <ComboBoxItem Content="1.0 giây (Phản hồi nhanh)" Tag="1000"/>
+                                    <ComboBoxItem Content="1.5 giây (Tiêu chuẩn cân bằng)" Tag="1500"/>
+                                    <ComboBoxItem Content="2.0 giây (Tiết kiệm tài nguyên)" Tag="2000"/>
+                                    <ComboBoxItem Content="3.0 giây (Chậm)" Tag="3000"/>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Group 3: Device Info & Save Actions -->
+                    <Border Style="{StaticResource ModernCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Thiết Bị: MacBookPro16,1 (MacBook Pro 16&quot; 2019)" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Cấu hình được lưu tự động tại: %AppData%\MacFanControlBootCamp\settings.json" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Command="{Binding ResetSettingsCommand}" Content="🔄 Khôi Phục Mặc Định" Style="{StaticResource ModernButton}" Height="34" Padding="14,0" Margin="0,0,10,0"/>
+                                <Button Command="{Binding SaveSettingsCommand}" Content="💾 Lưu Cài Đặt Ngay" Style="{StaticResource PrimaryButton}" Height="34" Padding="18,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- TAB 3: DIAGNOSTICS & LOGS -->
+        <Grid Grid.Row="1">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedTabIndex}" Value="3">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- Action Bar -->
-                <RowDefinition Height="*"/>    <!-- Log List -->
+                <RowDefinition Height="*"/>    <!-- Log Output -->
             </Grid.RowDefinitions>
 
             <!-- Action Bar -->
-            <Border Grid.Row="0" Style="{StaticResource ModernCard}" Margin="0,0,0,14" Padding="14">
+            <Border Grid.Row="0" Style="{StaticResource ModernCard}" Margin="0,0,0,12" Padding="12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -300,14 +865,14 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="System Diagnostic &amp; Apple SMC Inspector" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Run probe to inspect Apple SMC handles, IOCTL responses, and sensor states." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                        <TextBlock Text="System Diagnostic &amp; Apple SMC Inspector" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Kiểm tra IOCTL driver, FourCC SMC keys (FNum, F0Ac, F1Ac, F0Tg, F1Tg, FS!)." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Command="{Binding RunDiagnosticCommand}" Content="🔍 Run Diagnostic Probe" Height="36" Padding="14,0" Margin="0,0,10,0" Background="#2A2A32" Foreground="{StaticResource TextPrimaryBrush}" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand"/>
-                        <Button Command="{Binding CopyLogsCommand}" Content="📋 Copy All" Height="36" Padding="14,0" Margin="0,0,10,0" Background="#2A2A32" Foreground="{StaticResource TextPrimaryBrush}" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand"/>
-                        <Button Command="{Binding ExportLogsCommand}" Content="💾 Export Log to File" Height="36" Padding="16,0" Background="{StaticResource AccentBlueBrush}" Foreground="White" BorderThickness="0" FontWeight="Bold" Cursor="Hand"/>
+                        <Button Command="{Binding RunDiagnosticCommand}" Content="🔍 Chạy Chẩn Đoán Probe" Style="{StaticResource ModernButton}" Height="34" Padding="14,0" Margin="0,0,8,0"/>
+                        <Button Command="{Binding CopyLogsCommand}" Content="📋 Sao Chép (Copy)" Style="{StaticResource ModernButton}" Height="34" Padding="14,0" Margin="0,0,8,0"/>
+                        <Button Command="{Binding ExportLogsCommand}" Content="💾 Xuất Ra File" Style="{StaticResource PrimaryButton}" Height="34" Padding="16,0"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -321,7 +886,7 @@
                                 <TextBlock Text="{Binding DisplayText}" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12" Margin="0,2">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#D1D1D6"/>
+                                            <Setter Property="Foreground" Value="#C8CAD4"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding Level}" Value="Error">
                                                     <Setter Property="Foreground" Value="{StaticResource AccentRedBrush}"/>
@@ -334,7 +899,7 @@
                                                     <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding Level}" Value="Debug">
-                                                    <Setter Property="Foreground" Value="#636366"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -347,10 +912,13 @@
             </Border>
         </Grid>
 
-        <!-- 3. FOOTER -->
+        <!-- 3. FOOTER STATUS BAR -->
         <Grid Grid.Row="2" Margin="0,12,0,0">
-            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-            <TextBlock Text="Tip: Closing this window minimizes it to the System Tray" FontSize="11" Foreground="#5E5E66" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Ellipse Width="6" Height="6" Fill="{StaticResource AccentGreenBrush}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="Đóng cửa sổ này sẽ tự động thu nhỏ xuống Khay hệ thống (System Tray)" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
         </Grid>
     </Grid>
 </Window>

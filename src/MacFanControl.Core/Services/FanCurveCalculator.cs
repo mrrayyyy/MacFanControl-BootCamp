@@ -4,82 +4,72 @@ namespace MacFanControl.Core.Services;
 
 public class FanCurveCalculator
 {
-    private float _lastAppliedTemperature = float.MinValue;
-    private float _lastCalculatedPercentage = 0f;
-
     /// <summary>
-    /// Calculates the target fan percentage based on the current temperature and profile curve points.
-    /// Incorporates hysteresis to prevent fan noise oscillations.
+    /// Smooths temperature reading using asymmetric Exponential Moving Average (EMA).
+    /// Ramps up promptly for sustained heat, but cools down smoothly to prevent fan pulsation.
     /// </summary>
-    public float CalculateFanPercentage(float currentTemp, FanProfile profile)
+    public static float FilterTemperature(float rawTemp, float previousSmoothed, float alphaUp = 0.25f, float alphaDown = 0.12f)
     {
-        if (profile == null || profile.Points == null || profile.Points.Count == 0)
-        {
-            return 50f; // Fallback safe speed
-        }
+        if (previousSmoothed <= 0 || float.IsNaN(previousSmoothed))
+            return rawTemp;
 
-        var sortedPoints = profile.Points.OrderBy(p => p.Temperature).ToList();
-
-        // Apply hysteresis: only recalculate downward if temperature drops by more than HysteresisDegrees
-        if (_lastAppliedTemperature > float.MinValue)
+        if (rawTemp >= previousSmoothed)
         {
-            bool isDropping = currentTemp < _lastAppliedTemperature;
-            if (isDropping && (_lastAppliedTemperature - currentTemp) < profile.HysteresisDegrees)
-            {
-                return _lastCalculatedPercentage;
-            }
+            // Temperature rising: respond smoothly but securely
+            return previousSmoothed * (1f - alphaUp) + rawTemp * alphaUp;
         }
-
-        float targetPercentage;
-
-        // If below lowest point
-        if (currentTemp <= sortedPoints[0].Temperature)
-        {
-            targetPercentage = sortedPoints[0].FanPercentage;
-        }
-        // If above highest point
-        else if (currentTemp >= sortedPoints[^1].Temperature)
-        {
-            targetPercentage = sortedPoints[^1].FanPercentage;
-        }
-        // Linear interpolation between the two surrounding points
         else
         {
-            FanCurvePoint? lower = null;
-            FanCurvePoint? upper = null;
+            // Temperature dropping: cool down gradually to avoid jerky drops
+            return previousSmoothed * (1f - alphaDown) + rawTemp * alphaDown;
+        }
+    }
 
-            for (int i = 0; i < sortedPoints.Count - 1; i++)
-            {
-                if (currentTemp >= sortedPoints[i].Temperature && currentTemp <= sortedPoints[i + 1].Temperature)
-                {
-                    lower = sortedPoints[i];
-                    upper = sortedPoints[i + 1];
-                    break;
-                }
-            }
-
-            if (lower != null && upper != null)
-            {
-                float tempDelta = upper.Temperature - lower.Temperature;
-                if (tempDelta > 0.001f)
-                {
-                    float factor = (currentTemp - lower.Temperature) / tempDelta;
-                    targetPercentage = lower.FanPercentage + factor * (upper.FanPercentage - lower.FanPercentage);
-                }
-                else
-                {
-                    targetPercentage = upper.FanPercentage;
-                }
-            }
-            else
-            {
-                targetPercentage = 50f;
-            }
+    /// <summary>
+    /// Calculates the target fan percentage based on temperature and a 2-point linear Min/Max curve.
+    /// </summary>
+    public static float CalculatePercentageFromCurve(float currentTemp, FanCurveConfig curve)
+    {
+        if (curve.MaxTemp <= curve.MinTemp)
+        {
+            return curve.MinFanPercent;
         }
 
-        _lastAppliedTemperature = currentTemp;
-        _lastCalculatedPercentage = Math.Clamp(targetPercentage, 0f, 100f);
-        return _lastCalculatedPercentage;
+        if (currentTemp <= curve.MinTemp)
+        {
+            return Math.Clamp(curve.MinFanPercent, 0f, 100f);
+        }
+
+        if (currentTemp >= curve.MaxTemp)
+        {
+            return Math.Clamp(curve.MaxFanPercent, 0f, 100f);
+        }
+
+        float factor = (currentTemp - curve.MinTemp) / (curve.MaxTemp - curve.MinTemp);
+        float percentage = curve.MinFanPercent + factor * (curve.MaxFanPercent - curve.MinFanPercent);
+        return Math.Clamp(percentage, 0f, 100f);
+    }
+
+    /// <summary>
+    /// Slew-rate limiter for fan RPM: ensures fan speed changes smoothly without acoustic spikes.
+    /// </summary>
+    public static float SlewRateLimitRpm(float targetRpm, float currentCommandedRpm, float maxStepUp, float maxStepDown)
+    {
+        if (currentCommandedRpm <= 0)
+            return targetRpm;
+
+        float diff = targetRpm - currentCommandedRpm;
+
+        if (diff > 0)
+        {
+            // Ramping up
+            return currentCommandedRpm + Math.Min(diff, maxStepUp);
+        }
+        else
+        {
+            // Ramping down
+            return currentCommandedRpm - Math.Min(-diff, maxStepDown);
+        }
     }
 
     /// <summary>

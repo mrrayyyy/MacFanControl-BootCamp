@@ -31,7 +31,32 @@ public static class TaskSchedulerHelper
         }
     }
 
-    public static bool SetStartup(bool enable)
+    public static bool IsStartMinimizedConfigured()
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "schtasks.exe",
+                Arguments = $"/Query /TN \"{TaskName}\" /XML",
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using var process = Process.Start(psi);
+            string output = process?.StandardOutput.ReadToEnd() ?? "";
+            process?.WaitForExit(3000);
+            return output.Contains("--minimized", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    public static bool SetStartup(bool enable, bool startMinimized = true)
     {
         try
         {
@@ -41,8 +66,9 @@ public static class TaskSchedulerHelper
                 if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
                     return false;
 
-                // /RL HIGHEST runs as administrator without triggering UAC prompt at Windows logon
-                string args = $"/Create /TN \"{TaskName}\" /TR \"\\\"{exePath}\\\" --minimized\" /SC ONLOGON /RL HIGHEST /F";
+                string flag = startMinimized ? " --minimized" : "";
+                // /RL HIGHEST runs with administrative privileges on logon without UAC prompt
+                string args = $"/Create /TN \"{TaskName}\" /TR \"\\\"{exePath}\\\"{flag}\" /SC ONLOGON /RL HIGHEST /F";
 
                 var psi = new ProcessStartInfo
                 {
