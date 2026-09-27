@@ -54,7 +54,7 @@ public class AppleSmcService : ISmcService
                 var handle = SmcNative.CreateFile(
                     path,
                     SmcNative.GENERIC_READ | SmcNative.GENERIC_WRITE,
-                    0,
+                    SmcNative.FILE_SHARE_READ | SmcNative.FILE_SHARE_WRITE,
                     IntPtr.Zero,
                     SmcNative.OPEN_EXISTING,
                     SmcNative.FILE_ATTRIBUTE_NORMAL,
@@ -66,6 +66,11 @@ public class AppleSmcService : ISmcService
                 {
                     _deviceHandle = handle;
                     _useSimulation = false;
+
+                    // Initialize Apple SMC communication
+                    byte[] initOut = new byte[1];
+                    SmcNative.DeviceIoControl(handle, SmcNative.IOCTL_SMC_INIT, null, 0, initOut, 1, out _, IntPtr.Zero);
+
                     DiagnosticLogger.Instance.Info($"Successfully opened handle to {path} (Win32 Error: {lastError})");
                     return true;
                 }
@@ -97,20 +102,30 @@ public class AppleSmcService : ISmcService
 
         if (ReadSMC(SmcConstants.KEY_FAN0_ACTUAL, out var f0Data))
         {
-            float rpm = SmcDataConverter.Fpe2ToFloat(f0Data);
+            float rpm = SmcDataConverter.BytesToRpm(f0Data);
             DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'F0Ac' (Left Fan) returned {rpm:F0} RPM.");
         }
 
         if (ReadSMC(SmcConstants.KEY_FAN1_ACTUAL, out var f1Data))
         {
-            float rpm = SmcDataConverter.Fpe2ToFloat(f1Data);
+            float rpm = SmcDataConverter.BytesToRpm(f1Data);
             DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'F1Ac' (Right Fan) returned {rpm:F0} RPM.");
+        }
+
+        if (ReadSMC(SmcConstants.KEY_FAN0_MODE, out var f0m) && f0m.Length > 0)
+        {
+            DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'F0Md' (Left Fan Mode) returned {f0m[0]} ({(f0m[0] != 0 ? "Forced/Manual" : "Apple Auto")}).");
+        }
+
+        if (ReadSMC(SmcConstants.KEY_FAN1_MODE, out var f1m) && f1m.Length > 0)
+        {
+            DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'F1Md' (Right Fan Mode) returned {f1m[0]} ({(f1m[0] != 0 ? "Forced/Manual" : "Apple Auto")}).");
         }
 
         if (ReadSMC(SmcConstants.KEY_FAN_MANUAL, out var fsData))
         {
             ushort mask = SmcDataConverter.ToUInt16(fsData);
-            DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'FS! ' (Manual Status Mask) returned 0x{mask:X4}.");
+            DiagnosticLogger.Instance.Smc($"SMC Probe: Key 'FS! ' (Legacy Manual Status Mask) returned 0x{mask:X4}.");
         }
     }
 
@@ -128,10 +143,12 @@ public class AppleSmcService : ISmcService
             SmcConstants.KEY_FAN0_MIN,
             SmcConstants.KEY_FAN0_MAX,
             SmcConstants.KEY_FAN0_TARGET,
+            SmcConstants.KEY_FAN0_MODE,
             SmcConstants.KEY_FAN1_ACTUAL,
             SmcConstants.KEY_FAN1_MIN,
             SmcConstants.KEY_FAN1_MAX,
             SmcConstants.KEY_FAN1_TARGET,
+            SmcConstants.KEY_FAN1_MODE,
             SmcConstants.KEY_CPU_TEMP_PROX,
             SmcConstants.KEY_GPU_TEMP_PROX
         };
@@ -187,18 +204,29 @@ public class AppleSmcService : ISmcService
         uint keyTarget = fanIndex == 0 ? SmcConstants.KEY_FAN0_TARGET : SmcConstants.KEY_FAN1_TARGET;
 
         if (ReadSMC(keyActual, out var dataActual))
-            fan.CurrentRpm = SmcDataConverter.Fpe2ToFloat(dataActual);
+            fan.CurrentRpm = SmcDataConverter.BytesToRpm(dataActual);
 
         if (ReadSMC(keyMin, out var dataMin))
-            fan.MinRpm = SmcDataConverter.Fpe2ToFloat(dataMin);
+            fan.MinRpm = SmcDataConverter.BytesToRpm(dataMin);
 
         if (ReadSMC(keyMax, out var dataMax))
-            fan.MaxRpm = SmcDataConverter.Fpe2ToFloat(dataMax);
+            fan.MaxRpm = SmcDataConverter.BytesToRpm(dataMax);
 
         if (ReadSMC(keyTarget, out var dataTarget))
-            fan.TargetRpm = SmcDataConverter.Fpe2ToFloat(dataTarget);
+            fan.TargetRpm = SmcDataConverter.BytesToRpm(dataTarget);
 
-        if (ReadSMC(SmcConstants.KEY_FAN_MANUAL, out var manualData))
+        // MBP 16 2019 fallback defaults if SMC keys return 0
+        if (fan.MinRpm <= 0) fan.MinRpm = 1800;
+        if (fan.MaxRpm <= 0) fan.MaxRpm = 5616;
+        if (fan.CurrentRpm <= 0) fan.CurrentRpm = fan.MinRpm;
+        if (fan.TargetRpm <= 0) fan.TargetRpm = fan.CurrentRpm;
+
+        uint keyMode = fanIndex == 0 ? SmcConstants.KEY_FAN0_MODE : SmcConstants.KEY_FAN1_MODE;
+        if (ReadSMC(keyMode, out var modeData) && modeData.Length > 0)
+        {
+            fan.Mode = modeData[0] != 0 ? FanMode.Manual : FanMode.AppleAuto;
+        }
+        else if (ReadSMC(SmcConstants.KEY_FAN_MANUAL, out var manualData) && manualData.Length >= 2)
         {
             ushort mask = SmcDataConverter.ToUInt16(manualData);
             bool isManual = (mask & (1 << fanIndex)) != 0;
@@ -219,18 +247,20 @@ public class AppleSmcService : ISmcService
             return true;
         }
 
-        if (!SetManualModeBit(fanIndex, true))
-        {
-            DiagnosticLogger.Instance.Error($"Failed to set manual mode bit for Fan {fanIndex}");
-            return false;
-        }
+        // 1. Enable manual mode for this fan (via T2 FxMd or legacy FS!)
+        SetManualMode(fanIndex, true);
 
+        // 2. Clamp target RPM between fan min and max
+        var currentInfo = GetFanInfo(fanIndex);
+        float clampedRpm = Math.Clamp(targetRpm, currentInfo.MinRpm, currentInfo.MaxRpm);
+
+        // 3. Write target RPM as 4-byte float to F0Tg / F1Tg
         uint keyTarget = fanIndex == 0 ? SmcConstants.KEY_FAN0_TARGET : SmcConstants.KEY_FAN1_TARGET;
-        byte[] bytes = SmcDataConverter.FloatToFpe2(targetRpm);
+        byte[] bytes = SmcDataConverter.RpmToBytes(clampedRpm, 4);
         bool success = WriteSMC(keyTarget, bytes);
 
         if (success)
-            DiagnosticLogger.Instance.Smc($"Set Fan {fanIndex} Target RPM -> {targetRpm:F0} (Key: {SmcConstants.FromFourCc(keyTarget)})");
+            DiagnosticLogger.Instance.Smc($"Set Fan {fanIndex} Target RPM -> {clampedRpm:F0} (Key: {SmcConstants.FromFourCc(keyTarget)})");
         else
             DiagnosticLogger.Instance.Error($"Failed to write target RPM to Fan {fanIndex}");
 
@@ -255,7 +285,7 @@ public class AppleSmcService : ISmcService
 
         if (mode == FanMode.AppleAuto)
         {
-            return SetManualModeBit(fanIndex, false);
+            return SetManualMode(fanIndex, false);
         }
         else if (mode == FanMode.Turbo)
         {
@@ -263,7 +293,7 @@ public class AppleSmcService : ISmcService
             return SetFanSpeed(fanIndex, info.MaxRpm);
         }
 
-        return SetManualModeBit(fanIndex, true);
+        return SetManualMode(fanIndex, true);
     }
 
     public bool SetAllFansMode(FanMode mode, float targetRpm = 0)
@@ -281,7 +311,7 @@ public class AppleSmcService : ISmcService
 
     public void RestoreAppleDefaults()
     {
-        DiagnosticLogger.Instance.Info("Restoring Apple Default SMC thermal management (Clearing manual bits)");
+        DiagnosticLogger.Instance.Info("Restoring Apple Default SMC thermal management (Restoring Auto Mode)");
         if (_useSimulation)
         {
             foreach (var fan in _simulatedFans)
@@ -289,21 +319,45 @@ public class AppleSmcService : ISmcService
             return;
         }
 
+        for (int i = 0; i < FanCount; i++)
+        {
+            SetManualMode(i, false);
+        }
+
+        // Also clear legacy mask if supported
         WriteSMC(SmcConstants.KEY_FAN_MANUAL, new byte[] { 0, 0 });
     }
 
-    private bool SetManualModeBit(int fanIndex, bool enable)
+    private bool SetManualMode(int fanIndex, bool enable)
     {
-        if (!ReadSMC(SmcConstants.KEY_FAN_MANUAL, out var currentData))
-            return false;
+        bool success = false;
+        byte modeVal = enable ? (byte)1 : (byte)0;
 
-        ushort mask = SmcDataConverter.ToUInt16(currentData);
-        if (enable)
-            mask |= (ushort)(1 << fanIndex);
-        else
-            mask &= (ushort)~(1 << fanIndex);
+        // 1. Apple T2 mode key: F0Md / F1Md (ui8)
+        uint keyMode = fanIndex == 0 ? SmcConstants.KEY_FAN0_MODE : SmcConstants.KEY_FAN1_MODE;
+        if (WriteSMC(keyMode, new byte[] { modeVal }))
+        {
+            DiagnosticLogger.Instance.Debug($"SetManualMode: Key '{SmcConstants.FromFourCc(keyMode)}' -> {modeVal} (T2 mode)");
+            success = true;
+        }
 
-        return WriteSMC(SmcConstants.KEY_FAN_MANUAL, SmcDataConverter.FromUInt16(mask));
+        // 2. Legacy non-T2 Mac mode bitmask: FS!
+        if (ReadSMC(SmcConstants.KEY_FAN_MANUAL, out var currentData) && currentData.Length >= 2)
+        {
+            ushort mask = SmcDataConverter.ToUInt16(currentData);
+            if (enable)
+                mask |= (ushort)(1 << fanIndex);
+            else
+                mask &= (ushort)~(1 << fanIndex);
+
+            if (WriteSMC(SmcConstants.KEY_FAN_MANUAL, SmcDataConverter.FromUInt16(mask)))
+            {
+                DiagnosticLogger.Instance.Debug($"SetManualMode: Key 'FS! ' mask updated to 0x{mask:X4}");
+                success = true;
+            }
+        }
+
+        return success;
     }
 
     private bool ReadSMC(uint key, out byte[] data)
@@ -311,32 +365,51 @@ public class AppleSmcService : ISmcService
         data = Array.Empty<byte>();
         if (_deviceHandle == null || _deviceHandle.IsInvalid) return false;
 
-        var inCmd = new SmcNative.SMC_KEY_DATA
-        {
-            Key = key,
-            Bytes = new byte[32]
-        };
+        byte[] keyBytes = BitConverter.GetBytes(key);
+        if (BitConverter.IsLittleEndian)
+            Array.Reverse(keyBytes);
 
-        int size = Marshal.SizeOf<SmcNative.SMC_KEY_DATA>();
+        // 1. Query Key Info (size and type) via IOCTL_SMC_KEY_INFO
+        byte[] infoOut = new byte[6];
+        bool infoRes = SmcNative.DeviceIoControl(
+            _deviceHandle,
+            SmcNative.IOCTL_SMC_KEY_INFO,
+            keyBytes,
+            4,
+            infoOut,
+            6,
+            out int infoRet,
+            IntPtr.Zero);
+
+        byte dataSize = infoRes && infoRet >= 6 ? infoOut[0] : (byte)4;
+        if (dataSize == 0 || dataSize > 32) dataSize = 4;
+
+        // 2. Read Key via IOCTL_SMC_READ_KEY (0x00220000)
+        byte[] inBuf = new byte[5];
+        Array.Copy(keyBytes, inBuf, 4);
+        inBuf[4] = dataSize;
+
+        byte[] outBuf = new byte[32];
         bool result = SmcNative.DeviceIoControl(
             _deviceHandle,
             SmcNative.IOCTL_SMC_READ_KEY,
-            ref inCmd,
-            size,
-            out var outCmd,
-            size,
+            inBuf,
+            5,
+            outBuf,
+            32,
             out int bytesReturned,
             IntPtr.Zero);
 
         int win32Err = Marshal.GetLastWin32Error();
 
-        if (result && outCmd.Result == 0)
+        if (result && bytesReturned > 0)
         {
-            data = outCmd.Bytes ?? Array.Empty<byte>();
+            data = new byte[bytesReturned];
+            Array.Copy(outBuf, data, bytesReturned);
             return true;
         }
 
-        DiagnosticLogger.Instance.Debug($"ReadSMC [0x{key:X8} - {SmcConstants.FromFourCc(key)}] failed. Result: {result}, SmcResult: {outCmd.Result}, Win32Err: {win32Err}, BytesRet: {bytesReturned}");
+        DiagnosticLogger.Instance.Debug($"ReadSMC [{SmcConstants.FromFourCc(key)}] failed. Result: {result}, Win32Err: {win32Err}, BytesRet: {bytesReturned}");
         return false;
     }
 
@@ -344,34 +417,36 @@ public class AppleSmcService : ISmcService
     {
         if (_deviceHandle == null || _deviceHandle.IsInvalid) return false;
 
-        var inCmd = new SmcNative.SMC_KEY_DATA
-        {
-            Key = key,
-            Bytes = new byte[32]
-        };
+        byte[] keyBytes = BitConverter.GetBytes(key);
+        if (BitConverter.IsLittleEndian)
+            Array.Reverse(keyBytes);
 
-        if (data != null && data.Length > 0)
+        byte dataLen = (byte)(data != null ? Math.Min(data.Length, 32) : 0);
+        byte[] inBuf = new byte[5 + dataLen];
+        Array.Copy(keyBytes, inBuf, 4);
+        inBuf[4] = dataLen;
+        if (data != null && dataLen > 0)
         {
-            Array.Copy(data, inCmd.Bytes, Math.Min(data.Length, 32));
+            Array.Copy(data, 0, inBuf, 5, dataLen);
         }
 
-        int size = Marshal.SizeOf<SmcNative.SMC_KEY_DATA>();
+        byte[] outBuf = new byte[1];
         bool result = SmcNative.DeviceIoControl(
             _deviceHandle,
             SmcNative.IOCTL_SMC_WRITE_KEY,
-            ref inCmd,
-            size,
-            out var outCmd,
-            size,
+            inBuf,
+            inBuf.Length,
+            outBuf,
+            1,
             out int bytesReturned,
             IntPtr.Zero);
 
         int win32Err = Marshal.GetLastWin32Error();
 
-        if (result && outCmd.Result == 0)
+        if (result)
             return true;
 
-        DiagnosticLogger.Instance.Debug($"WriteSMC [0x{key:X8} - {SmcConstants.FromFourCc(key)}] failed. Result: {result}, SmcResult: {outCmd.Result}, Win32Err: {win32Err}, BytesRet: {bytesReturned}");
+        DiagnosticLogger.Instance.Debug($"WriteSMC [{SmcConstants.FromFourCc(key)}] failed. Result: {result}, Status: {outBuf[0]}, Win32Err: {win32Err}");
         return false;
     }
 

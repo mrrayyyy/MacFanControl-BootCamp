@@ -30,16 +30,18 @@ public static class SmcConstants
     public static readonly uint KEY_FAN_MANUAL = ToFourCc("FS! "); // UInt16 (Bitmask: 1 = manual, 0 = auto)
 
     // Fan 0 (Left Fan - CPU Side on MBP 16" 2019)
-    public static readonly uint KEY_FAN0_ACTUAL = ToFourCc("F0Ac"); // fpe2
-    public static readonly uint KEY_FAN0_MIN    = ToFourCc("F0Mn"); // fpe2
-    public static readonly uint KEY_FAN0_MAX    = ToFourCc("F0Mx"); // fpe2
-    public static readonly uint KEY_FAN0_TARGET = ToFourCc("F0Tg"); // fpe2
+    public static readonly uint KEY_FAN0_ACTUAL = ToFourCc("F0Ac"); // fpe2 or flt
+    public static readonly uint KEY_FAN0_MIN    = ToFourCc("F0Mn"); // fpe2 or flt
+    public static readonly uint KEY_FAN0_MAX    = ToFourCc("F0Mx"); // fpe2 or flt
+    public static readonly uint KEY_FAN0_TARGET = ToFourCc("F0Tg"); // fpe2 or flt
+    public static readonly uint KEY_FAN0_MODE   = ToFourCc("F0Md"); // ui8 (0 = Auto, 1 = Forced/Manual)
 
     // Fan 1 (Right Fan - GPU Side on MBP 16" 2019)
-    public static readonly uint KEY_FAN1_ACTUAL = ToFourCc("F1Ac"); // fpe2
-    public static readonly uint KEY_FAN1_MIN    = ToFourCc("F1Mn"); // fpe2
-    public static readonly uint KEY_FAN1_MAX    = ToFourCc("F1Mx"); // fpe2
-    public static readonly uint KEY_FAN1_TARGET = ToFourCc("F1Tg"); // fpe2
+    public static readonly uint KEY_FAN1_ACTUAL = ToFourCc("F1Ac"); // fpe2 or flt
+    public static readonly uint KEY_FAN1_MIN    = ToFourCc("F1Mn"); // fpe2 or flt
+    public static readonly uint KEY_FAN1_MAX    = ToFourCc("F1Mx"); // fpe2 or flt
+    public static readonly uint KEY_FAN1_TARGET = ToFourCc("F1Tg"); // fpe2 or flt
+    public static readonly uint KEY_FAN1_MODE   = ToFourCc("F1Md"); // ui8 (0 = Auto, 1 = Forced/Manual)
 
     // Temperatures
     public static readonly uint KEY_CPU_TEMP_PROX = ToFourCc("TC0P"); // sp78

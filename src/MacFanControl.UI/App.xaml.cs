@@ -5,6 +5,9 @@ using MacFanControl.SMC;
 using MacFanControl.UI.Tray;
 using MacFanControl.UI.ViewModels;
 
+using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
+
 namespace MacFanControl.UI;
 
 public partial class App : Application

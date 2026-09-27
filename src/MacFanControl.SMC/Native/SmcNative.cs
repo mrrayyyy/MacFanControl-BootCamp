@@ -7,12 +7,17 @@ public static class SmcNative
 {
     public const uint GENERIC_READ = 0x80000000;
     public const uint GENERIC_WRITE = 0x40000000;
+    public const uint FILE_SHARE_READ = 0x00000001;
+    public const uint FILE_SHARE_WRITE = 0x00000002;
     public const uint OPEN_EXISTING = 3;
     public const uint FILE_ATTRIBUTE_NORMAL = 0x00000080;
 
     // Standard IOCTL for Apple SMC driver on Boot Camp Windows
-    public const uint IOCTL_SMC_READ_KEY  = 0x00220004;
-    public const uint IOCTL_SMC_WRITE_KEY = 0x00220008;
+    public const uint IOCTL_SMC_INIT      = 0x00220020;
+    public const uint IOCTL_SMC_READ_KEY  = 0x00220000;
+    public const uint IOCTL_SMC_WRITE_KEY = 0x00220004;
+    public const uint IOCTL_SMC_GET_KEY   = 0x00220008;
+    public const uint IOCTL_SMC_KEY_INFO  = 0x0022000c;
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct SMC_VERSION
@@ -55,6 +60,17 @@ public static class SmcNative
         uint dwCreationDisposition,
         uint dwFlagsAndAttributes,
         IntPtr hTemplateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool DeviceIoControl(
+        SafeFileHandle hDevice,
+        uint dwIoControlCode,
+        byte[]? lpInBuffer,
+        int nInBufferSize,
+        byte[]? lpOutBuffer,
+        int nOutBufferSize,
+        out int lpBytesReturned,
+        IntPtr lpOverlapped);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool DeviceIoControl(

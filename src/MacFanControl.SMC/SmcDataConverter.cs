@@ -3,6 +3,33 @@ namespace MacFanControl.SMC;
 public static class SmcDataConverter
 {
     /// <summary>
+    /// Converts SMC fan RPM bytes to float, auto-detecting 4-byte IEEE 754 float (Apple T2 Macs) vs 2-byte fpe2 (legacy Macs).
+    /// </summary>
+    public static float BytesToRpm(byte[] bytes)
+    {
+        if (bytes == null || bytes.Length < 2) return 0f;
+        if (bytes.Length >= 4)
+        {
+            float val = BitConverter.ToSingle(bytes, 0);
+            if (!float.IsNaN(val) && !float.IsInfinity(val) && val >= 0)
+                return val;
+        }
+        return Fpe2ToFloat(bytes);
+    }
+
+    /// <summary>
+    /// Converts target RPM float to SMC bytes, supporting 4-byte IEEE 754 float (T2) and 2-byte fpe2.
+    /// </summary>
+    public static byte[] RpmToBytes(float value, int expectedSize = 4)
+    {
+        if (expectedSize == 4)
+        {
+            return BitConverter.GetBytes(value);
+        }
+        return FloatToFpe2(value);
+    }
+
+    /// <summary>
     /// Converts SMC 'fpe2' format (16-bit unsigned fixed-point 14.2) to float RPM.
     /// </summary>
     public static float Fpe2ToFloat(byte[] bytes)

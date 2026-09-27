@@ -3,6 +3,8 @@ bin/
 obj/
 out/
 build/
+publish/
+*_wpftmp.csproj
 
 ## Visual Studio & Rider
 .vs/

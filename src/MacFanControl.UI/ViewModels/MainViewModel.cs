@@ -12,6 +12,9 @@ using MacFanControl.Core.Services;
 using MacFanControl.UI.Startup;
 using MacFanControl.UI.Tray;
 
+using Application = System.Windows.Application;
+using Clipboard = System.Windows.Clipboard;
+
 namespace MacFanControl.UI.ViewModels;
 
 public class MainViewModel : INotifyPropertyChanged, IDisposable
