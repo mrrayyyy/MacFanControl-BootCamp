@@ -47,7 +47,7 @@ public class TrayIconManager : IDisposable
         _cpuTempNotifyIcon = new NotifyIcon
         {
             Visible = true,
-            Text = "MacFanControl: CPU Temp"
+            Text = "CPU Temp"
         };
         SetupNotifyIcon(_cpuTempNotifyIcon);
 
@@ -55,7 +55,7 @@ public class TrayIconManager : IDisposable
         _gpuTempNotifyIcon = new NotifyIcon
         {
             Visible = true,
-            Text = "MacFanControl: GPU Temp"
+            Text = "GPU Temp"
         };
         SetupNotifyIcon(_gpuTempNotifyIcon);
 
@@ -63,7 +63,7 @@ public class TrayIconManager : IDisposable
         _cpuUsageNotifyIcon = new NotifyIcon
         {
             Visible = true,
-            Text = "MacFanControl: CPU Load"
+            Text = "CPU Load"
         };
         SetupNotifyIcon(_cpuUsageNotifyIcon);
 
@@ -71,7 +71,7 @@ public class TrayIconManager : IDisposable
         _gpuUsageNotifyIcon = new NotifyIcon
         {
             Visible = true,
-            Text = "MacFanControl: GPU Load"
+            Text = "GPU Load"
         };
         SetupNotifyIcon(_gpuUsageNotifyIcon);
 
@@ -175,8 +175,7 @@ public class TrayIconManager : IDisposable
                 _cpuTempNotifyIcon,
                 cpuTempInt,
                 cpuTempColor,
-                false,
-                $"CPU Max: {cpuTempInt}°C (MacFanControl)",
+                $"CPU Max: {cpuTempInt}°C",
                 ref _lastCpuTempHIcon);
 
             // Render 2: GPU Temp Icon
@@ -184,8 +183,7 @@ public class TrayIconManager : IDisposable
                 _gpuTempNotifyIcon,
                 gpuTempInt,
                 gpuTempColor,
-                false,
-                $"GPU Hotspot: {gpuTempInt}°C (MacFanControl)",
+                $"GPU Hotspot: {gpuTempInt}°C",
                 ref _lastGpuTempHIcon);
 
             // Render 3: CPU Usage Icon
@@ -193,8 +191,7 @@ public class TrayIconManager : IDisposable
                 _cpuUsageNotifyIcon,
                 cpuUsageInt,
                 cpuUsageColor,
-                true,
-                $"CPU Load: {cpuUsageInt}% (MacFanControl)",
+                $"CPU Load: {cpuUsageInt}%",
                 ref _lastCpuUsageHIcon);
 
             // Render 4: GPU Usage Icon
@@ -202,8 +199,7 @@ public class TrayIconManager : IDisposable
                 _gpuUsageNotifyIcon,
                 gpuUsageInt,
                 gpuUsageColor,
-                true,
-                $"GPU Load: {gpuUsageInt}% (MacFanControl)",
+                $"GPU Load: {gpuUsageInt}%",
                 ref _lastGpuUsageHIcon);
         }
         catch
@@ -216,11 +212,10 @@ public class TrayIconManager : IDisposable
         NotifyIcon notifyIcon,
         int value,
         Color color,
-        bool isUsage,
         string tooltip,
         ref IntPtr lastHIcon)
     {
-        var (icon, hIcon) = CreateNumericIcon(value, color, isUsage);
+        var (icon, hIcon) = CreateNumericIcon(value, color);
         var oldIcon = notifyIcon.Icon;
         notifyIcon.Icon = icon;
         oldIcon?.Dispose();
@@ -236,7 +231,7 @@ public class TrayIconManager : IDisposable
         lastHIcon = hIcon;
     }
 
-    private static (Icon icon, IntPtr hIcon) CreateNumericIcon(int value, Color textColor, bool isUsage = false)
+    private static (Icon icon, IntPtr hIcon) CreateNumericIcon(int value, Color textColor)
     {
         const int size = 32;
         var bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
@@ -269,32 +264,20 @@ public class TrayIconManager : IDisposable
                 LineAlignment = StringAlignment.Center
             };
 
-            // If isUsage, shift the text up slightly to make room for bottom accent bar
-            float yOffset = isUsage ? -1.5f : 0f;
-            var rect = new RectangleF(0, yOffset, size, size);
+            var rect = new RectangleF(0, 0, size, size);
 
             // Subtle dark outline/shadow (1px offset) to ensure 100% visibility on both dark and light taskbars
-            using (var shadowBrush = new SolidBrush(Color.FromArgb(160, 0, 0, 0)))
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(170, 0, 0, 0)))
             {
-                g.DrawString(text, font, shadowBrush, new RectangleF(-1f, yOffset, size, size), sf);
-                g.DrawString(text, font, shadowBrush, new RectangleF(1f, yOffset, size, size), sf);
-                g.DrawString(text, font, shadowBrush, new RectangleF(0f, yOffset - 1f, size, size), sf);
-                g.DrawString(text, font, shadowBrush, new RectangleF(0f, yOffset + 1f, size, size), sf);
+                g.DrawString(text, font, shadowBrush, new RectangleF(-1f, 0f, size, size), sf);
+                g.DrawString(text, font, shadowBrush, new RectangleF(1f, 0f, size, size), sf);
+                g.DrawString(text, font, shadowBrush, new RectangleF(0f, -1f, size, size), sf);
+                g.DrawString(text, font, shadowBrush, new RectangleF(0f, 1f, size, size), sf);
             }
 
             // Draw crisp colored number
             using var textBrush = new SolidBrush(textColor);
             g.DrawString(text, font, textBrush, rect, sf);
-
-            // If isUsage, draw sleek modern accent bar at the bottom
-            if (isUsage)
-            {
-                using var barShadowBrush = new SolidBrush(Color.FromArgb(160, 0, 0, 0));
-                g.FillRectangle(barShadowBrush, 8, 28, 16, 4);
-
-                using var barBrush = new SolidBrush(textColor);
-                g.FillRectangle(barBrush, 9, 29, 14, 2);
-            }
         }
 
         IntPtr hIcon = bmp.GetHicon();
