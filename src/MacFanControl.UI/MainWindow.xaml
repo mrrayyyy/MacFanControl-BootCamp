@@ -1063,6 +1063,71 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Group 2: System Tray Notification Area Icons -->
+                    <Border Style="{StaticResource ModernCard}" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="📌 Tùy Biến Biểu Tượng Khay Hệ Thống (System Tray Icons)" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Hiển thị đo nhiệt độ (°C) và % sử dụng CPU/GPU (Process load) với dải màu riêng biệt phân biệt trực quan." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,12"/>
+
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Column 1: Temperatures (°C) -->
+                                <Border Grid.Column="0" Background="#161822" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,6,0">
+                                    <StackPanel>
+                                        <TextBlock Text="🔥 Nhiệt Độ Phần Cứng (°C)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
+
+                                        <CheckBox IsChecked="{Binding ShowCpuTempTray, Mode=TwoWay}" Margin="0,0,0,10">
+                                            <CheckBox.Content>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Border Background="#00FF66" Width="10" Height="10" CornerRadius="5" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Nhiệt CPU Max (Neon Xanh Lá)" FontSize="12" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </CheckBox.Content>
+                                        </CheckBox>
+
+                                        <CheckBox IsChecked="{Binding ShowGpuTempTray, Mode=TwoWay}">
+                                            <CheckBox.Content>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Border Background="#00F5FF" Width="10" Height="10" CornerRadius="5" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Nhiệt GPU Hotspot (Neon Xanh Cyan)" FontSize="12" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </CheckBox.Content>
+                                        </CheckBox>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Column 2: Usage / Process Load (%) -->
+                                <Border Grid.Column="1" Background="#161822" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="6,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="⚡ Mức Tải Hoạt Động / Process (%)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
+
+                                        <CheckBox IsChecked="{Binding ShowCpuUsageTray, Mode=TwoWay}" Margin="0,0,0,10">
+                                            <CheckBox.Content>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Border Background="#FF6E00" Width="10" Height="10" CornerRadius="5" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Mức tải CPU Load (Neon Cam Rực)" FontSize="12" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </CheckBox.Content>
+                                        </CheckBox>
+
+                                        <CheckBox IsChecked="{Binding ShowGpuUsageTray, Mode=TwoWay}">
+                                            <CheckBox.Content>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Border Background="#FFE600" Width="10" Height="10" CornerRadius="5" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Mức tải GPU Load (Neon Vàng Solar)" FontSize="12" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </CheckBox.Content>
+                                        </CheckBox>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Group 2: Fan Smoothing & Anti-Jitter -->
                     <Border Style="{StaticResource ModernCard}" Margin="0,0,0,14">
                         <StackPanel>

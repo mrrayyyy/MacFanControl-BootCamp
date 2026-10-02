@@ -32,6 +32,12 @@ public class AppSettings
     public FanMode CurrentMode { get; set; } = FanMode.Curve;
     public float ManualTargetRpm { get; set; } = 3500;
 
+    // System Tray Notification Area Icons Customization
+    public bool ShowCpuTempTray { get; set; } = true;
+    public bool ShowGpuTempTray { get; set; } = true;
+    public bool ShowCpuUsageTray { get; set; } = true;
+    public bool ShowGpuUsageTray { get; set; } = true;
+
     // Independent Temperature-Based Control Configurations
     public FanCurveConfig LeftFanCurve { get; set; } = new()
     {

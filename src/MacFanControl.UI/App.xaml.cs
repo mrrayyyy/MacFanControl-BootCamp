@@ -59,6 +59,7 @@ public partial class App : Application
             onExitApp: () => Shutdown());
 
         _viewModel.TrayManager = _trayManager;
+        _viewModel.UpdateTrayVisibility();
 
         // Check if started with --minimized flag (e.g. from Windows boot)
         bool startMinimized = e.Args.Any(a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));

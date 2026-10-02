@@ -106,15 +106,15 @@ public class HardwareMonitorService : ISensorService
                         {
                             overview.CpuPowerWatts = sensor.Value ?? overview.CpuPowerWatts;
                         }
-                        else if (sensor.SensorType == SensorType.Load && sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase))
+                        else if (sensor.SensorType == SensorType.Load && (sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)))
                         {
                             overview.CpuUsagePercent = sensor.Value ?? overview.CpuUsagePercent;
                         }
                     }
                 }
 
-                // GPU Monitoring (AMD Radeon Pro 5300M / 5500M / 5600M)
-                if (hardware.HardwareType == HardwareType.GpuAmd || hardware.HardwareType == HardwareType.GpuIntel)
+                // GPU Monitoring (AMD Radeon Pro 5300M / 5500M / 5600M / Intel Iris / Nvidia)
+                if (hardware.HardwareType == HardwareType.GpuAmd || hardware.HardwareType == HardwareType.GpuIntel || hardware.HardwareType == HardwareType.GpuNvidia)
                 {
                     foreach (var sensor in hardware.Sensors)
                     {
@@ -130,9 +130,12 @@ public class HardwareMonitorService : ISensorService
                         {
                             overview.GpuPowerWatts = sensor.Value ?? overview.GpuPowerWatts;
                         }
-                        else if (sensor.SensorType == SensorType.Load && (sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase)))
+                        else if (sensor.SensorType == SensorType.Load && (sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("D3D", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("GPU", StringComparison.OrdinalIgnoreCase)))
                         {
-                            overview.GpuUsagePercent = sensor.Value ?? overview.GpuUsagePercent;
+                            if (sensor.Value.HasValue && sensor.Value.Value > overview.GpuUsagePercent)
+                            {
+                                overview.GpuUsagePercent = sensor.Value.Value;
+                            }
                         }
                     }
                 }

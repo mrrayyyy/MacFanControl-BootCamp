@@ -182,6 +182,76 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public bool ShowCpuTempTray
+    {
+        get => _settings.ShowCpuTempTray;
+        set
+        {
+            if (_settings.ShowCpuTempTray != value)
+            {
+                _settings.ShowCpuTempTray = value;
+                OnPropertyChanged();
+                SaveSettings();
+                UpdateTrayVisibility();
+            }
+        }
+    }
+
+    public bool ShowGpuTempTray
+    {
+        get => _settings.ShowGpuTempTray;
+        set
+        {
+            if (_settings.ShowGpuTempTray != value)
+            {
+                _settings.ShowGpuTempTray = value;
+                OnPropertyChanged();
+                SaveSettings();
+                UpdateTrayVisibility();
+            }
+        }
+    }
+
+    public bool ShowCpuUsageTray
+    {
+        get => _settings.ShowCpuUsageTray;
+        set
+        {
+            if (_settings.ShowCpuUsageTray != value)
+            {
+                _settings.ShowCpuUsageTray = value;
+                OnPropertyChanged();
+                SaveSettings();
+                UpdateTrayVisibility();
+            }
+        }
+    }
+
+    public bool ShowGpuUsageTray
+    {
+        get => _settings.ShowGpuUsageTray;
+        set
+        {
+            if (_settings.ShowGpuUsageTray != value)
+            {
+                _settings.ShowGpuUsageTray = value;
+                OnPropertyChanged();
+                SaveSettings();
+                UpdateTrayVisibility();
+            }
+        }
+    }
+
+    public void UpdateTrayVisibility()
+    {
+        TrayManager?.UpdateVisibility(
+            _settings.ShowCpuTempTray,
+            _settings.ShowGpuTempTray,
+            _settings.ShowCpuUsageTray,
+            _settings.ShowGpuUsageTray
+        );
+    }
+
     public bool EnableSmoothing
     {
         get => _settings.EnableSmoothing;
@@ -634,8 +704,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         Fan0 = _smcService.GetFanInfo(0);
         Fan1 = _smcService.GetFanInfo(1);
 
-        // Update Tray Icon with CPU Max Core and GPU Hotspot Temperatures
-        TrayManager?.UpdateTemperatureIcon(Overview.CpuMaxTemp, Overview.GpuHotspotTemp);
+        // Update Tray Icons with CPU/GPU Temperatures & CPU/GPU Usage/Load
+        TrayManager?.UpdateTrayIcons(
+            Overview.CpuMaxTemp,
+            Overview.GpuHotspotTemp,
+            Overview.CpuUsagePercent,
+            Overview.GpuUsagePercent);
 
         // Handle Fan Controls
         if (SelectedMode == FanMode.Curve)
