@@ -92,6 +92,7 @@ public class HardwareMonitorService : ISensorService
                 // CPU Monitoring (Intel Core i9-9880H)
                 if (hardware.HardwareType == HardwareType.Cpu)
                 {
+                    bool cpuTotalFound = false;
                     foreach (var sensor in hardware.Sensors)
                     {
                         if (sensor.SensorType == SensorType.Temperature)
@@ -106,9 +107,17 @@ public class HardwareMonitorService : ISensorService
                         {
                             overview.CpuPowerWatts = sensor.Value ?? overview.CpuPowerWatts;
                         }
-                        else if (sensor.SensorType == SensorType.Load && (sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase)))
+                        else if (sensor.SensorType == SensorType.Load)
                         {
-                            overview.CpuUsagePercent = sensor.Value ?? overview.CpuUsagePercent;
+                            if (sensor.Name.Equals("CPU Total", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase))
+                            {
+                                overview.CpuUsagePercent = sensor.Value ?? overview.CpuUsagePercent;
+                                cpuTotalFound = true;
+                            }
+                            else if (!cpuTotalFound && overview.CpuUsagePercent <= 0f)
+                            {
+                                overview.CpuUsagePercent = sensor.Value ?? overview.CpuUsagePercent;
+                            }
                         }
                     }
                 }
@@ -116,6 +125,7 @@ public class HardwareMonitorService : ISensorService
                 // GPU Monitoring (AMD Radeon Pro 5300M / 5500M / 5600M / Intel Iris / Nvidia)
                 if (hardware.HardwareType == HardwareType.GpuAmd || hardware.HardwareType == HardwareType.GpuIntel || hardware.HardwareType == HardwareType.GpuNvidia)
                 {
+                    bool gpuCoreFound = false;
                     foreach (var sensor in hardware.Sensors)
                     {
                         if (sensor.SensorType == SensorType.Temperature)
@@ -130,11 +140,16 @@ public class HardwareMonitorService : ISensorService
                         {
                             overview.GpuPowerWatts = sensor.Value ?? overview.GpuPowerWatts;
                         }
-                        else if (sensor.SensorType == SensorType.Load && (sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("D3D", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("GPU", StringComparison.OrdinalIgnoreCase)))
+                        else if (sensor.SensorType == SensorType.Load)
                         {
-                            if (sensor.Value.HasValue && sensor.Value.Value > overview.GpuUsagePercent)
+                            if (sensor.Name.Equals("GPU Core", StringComparison.OrdinalIgnoreCase))
                             {
-                                overview.GpuUsagePercent = sensor.Value.Value;
+                                overview.GpuUsagePercent = sensor.Value ?? overview.GpuUsagePercent;
+                                gpuCoreFound = true;
+                            }
+                            else if (!gpuCoreFound && (sensor.Name.Contains("3D", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                overview.GpuUsagePercent = sensor.Value ?? overview.GpuUsagePercent;
                             }
                         }
                     }
